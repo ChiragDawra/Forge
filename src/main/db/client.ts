@@ -1,35 +1,47 @@
 import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { join } from 'path'
-import { homedir } from 'os'
-import { mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import * as schema from './schema'
 
-const DB_DIR = join(homedir(), 'Library', 'Application Support', 'Forge')
-const DB_PATH = join(DB_DIR, 'forge.db')
+type ForgeDb = BetterSQLite3Database<typeof schema>
 
-let _db: ReturnType<typeof drizzle> | null = null
+let _sqlite: Database.Database | null = null
+let _db: ForgeDb | null = null
 
-export function initDb(): void {
-  mkdirSync(DB_DIR, { recursive: true })
-  const sqlite = new Database(DB_PATH)
+export function initDb(userDataPath: string): ForgeDb {
+  mkdirSync(userDataPath, { recursive: true })
+  const dbPath = join(userDataPath, 'forge.db')
+
+  const sqlite = new Database(dbPath)
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
-  _db = drizzle(sqlite, { schema })
+
+  const db = drizzle(sqlite, { schema })
 
   const migrationsPath = join(__dirname, 'migrations')
-  try {
-    migrate(_db, { migrationsFolder: migrationsPath })
-  } catch {
-    // Migrations folder may not exist on first run before drizzle-kit generate
-    console.log('[DB] No migrations found — running without migration (dev mode)')
+  if (existsSync(migrationsPath)) {
+    migrate(db, { migrationsFolder: migrationsPath })
+  } else {
+    console.log('[DB] No migrations folder — skipping (run `drizzle-kit generate` to create)')
   }
 
-  console.log('[DB] Initialized at', DB_PATH)
+  _sqlite = sqlite
+  _db = db
+  console.log('[DB] Initialized at', dbPath)
+  return db
 }
 
-export function getDb(): ReturnType<typeof drizzle> {
+export function getDb(): ForgeDb {
   if (!_db) throw new Error('DB not initialized — call initDb() first')
   return _db
+}
+
+export function closeDb(): void {
+  if (_sqlite) {
+    _sqlite.close()
+    _sqlite = null
+    _db = null
+  }
 }

@@ -8,3 +8,18 @@ generated-projects/*/dist
 .env
 .env.*
 .DS_Store
+
+# Local dev DB used by drizzle-kit
+.local/
+
+# Per-machine AI tool artifacts (not source)
+.claude/
+.code-review-graph/
+.mcp.json
+.cursor/
+.cursorrules
+.windsurfrules
+.opencode.json
+AGENTS.md
+GEMINI.md
+CLAUDE.md

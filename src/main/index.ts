@@ -1,7 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initDb } from './db/client'
+import { closeDb, initDb } from './db/client'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -42,9 +42,15 @@ app.whenReady().then(() => {
   })
 
   try {
-    initDb()
+    initDb(app.getPath('userData'))
   } catch (err) {
     console.error('[Forge] DB init failed:', err)
+    dialog.showErrorBox(
+      'Forge — Database Error',
+      `Failed to initialize the local database.\n\n${err instanceof Error ? err.message : String(err)}`
+    )
+    app.exit(1)
+    return
   }
 
   createWindow()
@@ -56,4 +62,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  closeDb()
 })
