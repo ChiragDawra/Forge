@@ -1,0 +1,10 @@
+node_modules
+dist
+out
+.repomix-context.xml
+generated-projects/*/node_modules
+generated-projects/*/dist
+*.log
+.env
+.env.*
+.DS_Store
