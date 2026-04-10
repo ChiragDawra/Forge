@@ -28,3 +28,20 @@ Visualized the Day 1 graph with `code-review-graph` and applied targeted fixes:
 - `drizzle.config.ts` — replaced macOS-only path with cross-platform default (`./.local/forge-dev.db`), overridable via `FORGE_DB_URL`.
 - `.gitignore` — excludes per-machine tool artifacts (`.code-review-graph/`, MCP/agent configs) and the local dev DB dir.
 - `npm run build` still passes cleanly (main + preload + renderer bundles).
+
+---
+
+## Day 2 — 2026-04-10
+
+**Goal:** Build main layout + routing so all 4 pages are navigable
+
+**Tasks completed:**
+- [x] Task 1 — Built `Layout.tsx` — root wrapper composing Sidebar + Header + Outlet
+- [x] Task 2 — Built `Sidebar.tsx` — left nav with NavLinks (Home, Settings, Models), active highlighting, drag region, project list placeholder
+- [x] Task 3 — Built `Header.tsx` — page title from route + model cost indicator stub
+- [x] Task 4 — Built page stubs: `Home.tsx` (project list + New Project), `Project.tsx` (prompt textarea), `Settings.tsx` (API key fields), `Models.tsx` (usage cards)
+- [x] Task 5 — Wired HashRouter in `App.tsx` — `/`, `/project/:id`, `/settings`, `/models` all render under Layout
+- [x] Task 6 — Build passes cleanly, 3 commits pushed to GitHub
+
+**Summary:**
+Layout shell and routing are complete. All 4 pages navigable without crash. Sidebar highlights active route, Header shows contextual page title. Pages have appropriate empty/placeholder states ready for Day 3 (Settings + keytar) and Day 4 (project CRUD).
