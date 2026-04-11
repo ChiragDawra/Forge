@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, session, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { closeDb, initDb } from './db/client'
@@ -53,6 +53,28 @@ app.whenReady().then(() => {
     app.exit(1)
     return
   }
+
+  // Security: set Content-Security-Policy header
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+        ]
+      }
+    })
+  })
+
+  // Security: block navigation to external URLs
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-navigate', (event, url) => {
+      const parsed = new URL(url)
+      if (parsed.origin !== 'http://localhost:5173') {
+        event.preventDefault()
+      }
+    })
+  })
 
   registerSettingsIpc()
   createWindow()

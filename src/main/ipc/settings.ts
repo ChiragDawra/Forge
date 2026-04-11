@@ -11,9 +11,17 @@ const VALID_KEYS = new Set([
   'GITHUB_TOKEN'
 ])
 
-function assertValidKey(key: string): void {
-  if (!VALID_KEYS.has(key)) {
-    throw new Error(`Unknown setting key: ${key}`)
+const MAX_VALUE_LENGTH = 512
+
+function assertValidKey(key: unknown): asserts key is string {
+  if (typeof key !== 'string' || !VALID_KEYS.has(key)) {
+    throw new Error(`Unknown setting key: ${String(key)}`)
+  }
+}
+
+function assertValidValue(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_VALUE_LENGTH) {
+    throw new Error('Invalid value: must be a non-empty string under 512 characters')
   }
 }
 
@@ -25,6 +33,7 @@ export function registerSettingsIpc(): void {
 
   ipcMain.handle('settings:set', async (_event, key: string, value: string): Promise<void> => {
     assertValidKey(key)
+    assertValidValue(value)
     await keytar.setPassword(SERVICE, key, value)
   })
 
