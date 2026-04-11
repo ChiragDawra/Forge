@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, Save, Trash2, Loader2, Check } from 'lucide-react'
+import { KeyRound, Save, Trash2, Loader2, Check, AlertTriangle } from 'lucide-react'
 import { API_KEYS } from '@renderer/lib/constants'
 
 const keyEntries = Object.entries(API_KEYS) as [string, string][]
+
+function isElectron(): boolean {
+  return typeof window.api?.settings !== 'undefined'
+}
 
 export default function Settings(): React.JSX.Element {
   const [values, setValues] = useState<Record<string, string>>({})
@@ -12,6 +16,10 @@ export default function Settings(): React.JSX.Element {
 
   useEffect(() => {
     async function loadKeys(): Promise<void> {
+      if (!isElectron()) {
+        setLoading(false)
+        return
+      }
       const loaded: Record<string, string> = {}
       for (const [, keyName] of keyEntries) {
         try {
@@ -28,6 +36,10 @@ export default function Settings(): React.JSX.Element {
   }, [])
 
   async function handleSave(): Promise<void> {
+    if (!isElectron()) {
+      setFeedback('Error: Open this app in the Electron window, not the browser')
+      return
+    }
     setSaving(true)
     setFeedback(null)
     try {
@@ -47,7 +59,12 @@ export default function Settings(): React.JSX.Element {
   }
 
   async function handleClear(keyName: string): Promise<void> {
-    await window.api.settings.delete(keyName)
+    if (!isElectron()) return
+    try {
+      await window.api.settings.delete(keyName)
+    } catch {
+      // ignore
+    }
     setValues((prev) => {
       const next = { ...prev }
       delete next[keyName]
@@ -71,6 +88,13 @@ export default function Settings(): React.JSX.Element {
           API keys are stored securely in your OS keychain.
         </p>
       </div>
+
+      {!isElectron() && (
+        <div className="flex items-center gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          Keychain access requires the Electron app. Open the app window instead of the browser.
+        </div>
+      )}
 
       <div className="space-y-4">
         {keyEntries.map(([label, keyName]) => (
