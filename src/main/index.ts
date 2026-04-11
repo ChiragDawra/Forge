@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { closeDb, initDb } from './db/client'
+import { registerSettingsIpc } from './ipc/settings'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
     return
   }
 
+  registerSettingsIpc()
   createWindow()
 
   app.on('activate', () => {
