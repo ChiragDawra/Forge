@@ -14,13 +14,17 @@ export default function Settings(): React.JSX.Element {
     async function loadKeys(): Promise<void> {
       const loaded: Record<string, string> = {}
       for (const [, keyName] of keyEntries) {
-        const val = await window.api.settings.get(keyName)
-        if (val) loaded[keyName] = val
+        try {
+          const val = await window.api.settings.get(keyName)
+          if (val) loaded[keyName] = val
+        } catch {
+          // Key not found or keytar unavailable — skip
+        }
       }
       setValues(loaded)
       setLoading(false)
     }
-    loadKeys()
+    loadKeys().catch(() => setLoading(false))
   }, [])
 
   async function handleSave(): Promise<void> {
