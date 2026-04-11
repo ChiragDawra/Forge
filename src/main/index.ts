@@ -54,25 +54,27 @@ app.whenReady().then(() => {
     return
   }
 
-  // Security: set Content-Security-Policy header
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
-        ]
-      }
+  // Security: set Content-Security-Policy header (production only — Vite HMR needs relaxed CSP in dev)
+  if (!is.dev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+          ]
+        }
+      })
     })
-  })
+  }
 
   // Security: block navigation to external URLs
   app.on('web-contents-created', (_event, contents) => {
     contents.on('will-navigate', (event, url) => {
       const parsed = new URL(url)
-      if (parsed.origin !== 'http://localhost:5173') {
-        event.preventDefault()
-      }
+      if (is.dev && parsed.origin === 'http://localhost:5173') return
+      if (!is.dev && parsed.protocol === 'file:') return
+      event.preventDefault()
     })
   })
 
