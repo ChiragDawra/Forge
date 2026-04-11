@@ -1,11 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { ForgeApi } from './index.d'
 
-// Typed IPC bridge — handlers added in future sessions
 const api: ForgeApi = {
   // Projects IPC (Day 4)
-  // Settings IPC (Day 3)
+  settings: {
+    get: (key: string) => ipcRenderer.invoke('settings:get', key),
+    set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
+    delete: (key: string) => ipcRenderer.invoke('settings:delete', key)
+  }
   // Agent IPC (Day 8+)
   // Models IPC (Day 6)
 }
