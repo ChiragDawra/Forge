@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { closeDb, initDb } from './db/client'
 import { registerSettingsIpc } from './ipc/settings'
+import { registerProjectsIpc } from './ipc/projects'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -79,6 +80,7 @@ app.whenReady().then(() => {
   })
 
   registerSettingsIpc()
+  registerProjectsIpc()
   createWindow()
 
   app.on('activate', () => {
