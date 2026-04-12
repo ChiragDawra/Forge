@@ -28,7 +28,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       const projects = await window.api.projects.list()
       set({ projects, loading: false })
     } catch (err) {
-      set({ loading: false, error: err instanceof Error ? err.message : String(err) })
+      set({ loading: false, error: 'Failed to load projects' })
     }
   },
 
@@ -36,11 +36,10 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     if (!hasApi()) return null
     try {
       const project = await window.api.projects.create(name, prompt)
-      // Refresh the list
       await get().fetch()
       return project
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) })
+    } catch {
+      set({ error: 'Failed to create project' })
       return null
     }
   }

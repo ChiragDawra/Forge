@@ -14,6 +14,11 @@ export default function Settings(): React.JSX.Element {
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
 
+  // Security: clear secrets from memory on unmount
+  useEffect(() => {
+    return () => setValues({})
+  }, [])
+
   useEffect(() => {
     async function loadKeys(): Promise<void> {
       if (!isElectron()) {
@@ -52,7 +57,7 @@ export default function Settings(): React.JSX.Element {
       setFeedback('Keys saved to keychain')
       setTimeout(() => setFeedback(null), 3000)
     } catch (err) {
-      setFeedback(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      setFeedback('Error: Failed to save keys. Check your connection to the keychain.')
     } finally {
       setSaving(false)
     }

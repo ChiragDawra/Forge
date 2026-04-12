@@ -4,6 +4,8 @@ import { Rocket, Loader2 } from 'lucide-react'
 import { useProjectsStore } from '@renderer/lib/stores/projects'
 import type { ProjectRow } from '../../../preload/index.d'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export default function Project(): React.JSX.Element {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -20,6 +22,11 @@ export default function Project(): React.JSX.Element {
 
   useEffect(() => {
     if (id && id !== 'new') {
+      // Security: validate UUID format before sending to IPC
+      if (!UUID_RE.test(id)) {
+        navigate('/')
+        return
+      }
       setLoadingProject(true)
       window.api?.projects
         ?.get(id)
@@ -27,7 +34,7 @@ export default function Project(): React.JSX.Element {
         .catch(() => setProject(null))
         .finally(() => setLoadingProject(false))
     }
-  }, [id])
+  }, [id, navigate])
 
   async function handleCreate(): Promise<void> {
     if (!name.trim() || !prompt.trim()) {
@@ -62,6 +69,7 @@ export default function Project(): React.JSX.Element {
               type="text"
               placeholder="My Awesome App"
               value={name}
+              maxLength={200}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
@@ -72,6 +80,7 @@ export default function Project(): React.JSX.Element {
             <textarea
               placeholder="Build me a SaaS dashboard for tracking freelance projects with auth, payments, and a kanban board..."
               value={prompt}
+              maxLength={10000}
               onChange={(e) => setPrompt(e.target.value)}
               className="min-h-[160px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y"
             />
