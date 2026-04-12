@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, Settings, BarChart3, Hammer } from 'lucide-react'
+import { Home, Settings, BarChart3, Hammer, FolderOpen } from 'lucide-react'
 import { cn } from '@renderer/lib/utils'
+import { useProjectsStore } from '@renderer/lib/stores/projects'
 
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
@@ -9,6 +11,12 @@ const navItems = [
 ] as const
 
 export default function Sidebar(): React.JSX.Element {
+  const { projects, fetch } = useProjectsStore()
+
+  useEffect(() => {
+    fetch()
+  }, [fetch])
+
   return (
     <aside className="flex h-full w-56 flex-col border-r border-border bg-card">
       {/* Logo / drag region */}
@@ -39,14 +47,36 @@ export default function Sidebar(): React.JSX.Element {
         ))}
       </nav>
 
-      {/* Projects list placeholder */}
+      {/* Projects list */}
       <div className="mt-6 flex-1 overflow-y-auto px-2">
         <p className="px-3 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Projects
         </p>
-        <div className="flex items-center justify-center rounded-md border border-dashed border-border py-8 text-xs text-muted-foreground">
-          No projects yet
-        </div>
+        {projects.length === 0 ? (
+          <div className="flex items-center justify-center rounded-md border border-dashed border-border py-8 text-xs text-muted-foreground">
+            No projects yet
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {projects.map((project) => (
+              <NavLink
+                key={project.id}
+                to={`/project/${project.id}`}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors truncate',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )
+                }
+              >
+                <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{project.name}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
       </div>
     </aside>
   )
