@@ -16,7 +16,12 @@ function createWindow(): void {
     backgroundColor: '#0a0a0a',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      enableBlinkFeatures: ''
     }
   })
 
@@ -24,6 +29,7 @@ function createWindow(): void {
     mainWindow.show()
   })
 
+  // Security: open external links in default browser, never inside the app
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -47,27 +53,32 @@ app.whenReady().then(() => {
     initDb(app.getPath('userData'))
   } catch (err) {
     console.error('[Forge] DB init failed:', err)
-    dialog.showErrorBox(
-      'Forge — Database Error',
-      `Failed to initialize the local database.\n\n${err instanceof Error ? err.message : String(err)}`
-    )
+    const errorMessage = is.dev
+      ? `${err instanceof Error ? err.message : String(err)}`
+      : 'Please reinstall or contact support.'
+    dialog.showErrorBox('Forge — Database Error', `Failed to initialize the local database.\n\n${errorMessage}`)
     app.exit(1)
     return
   }
 
-  // Security: set Content-Security-Policy header (production only — Vite HMR needs relaxed CSP in dev)
-  if (!is.dev) {
-    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
-          ]
-        }
-      })
-    })
-  }
+  // Security headers — production-only CSP (Vite HMR needs relaxed policy in dev)
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers: Record<string, string[]> = {
+      ...details.responseHeaders,
+      'X-Content-Type-Options': ['nosniff'],
+      'X-Frame-Options': ['DENY'],
+      'Referrer-Policy': ['no-referrer'],
+      'X-XSS-Protection': ['1; mode=block']
+    }
+
+    if (!is.dev) {
+      headers['Content-Security-Policy'] = [
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'"
+      ]
+    }
+
+    callback({ responseHeaders: headers })
+  })
 
   // Security: block navigation to external URLs
   app.on('web-contents-created', (_event, contents) => {
@@ -77,6 +88,21 @@ app.whenReady().then(() => {
       if (!is.dev && parsed.protocol === 'file:') return
       event.preventDefault()
     })
+
+    // Security: block new window creation (popups)
+    contents.setWindowOpenHandler(() => {
+      return { action: 'deny' }
+    })
+
+    // Security: block webview/iframe attachment
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault()
+    })
+  })
+
+  // Security: disable permission requests (camera, microphone, geolocation, etc.)
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
   })
 
   registerSettingsIpc()
