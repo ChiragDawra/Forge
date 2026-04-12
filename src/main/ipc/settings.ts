@@ -1,7 +1,9 @@
 import { ipcMain } from 'electron'
 import keytar from 'keytar'
+import { validateSender, checkRateLimit, assertSafeString, auditLog, safeErrorMessage } from './security'
 
 const SERVICE = 'forge'
+const MAX_VALUE_LENGTH = 512
 
 const VALID_KEYS = new Set([
   'ANTHROPIC_BASE_KEY',
@@ -11,34 +13,50 @@ const VALID_KEYS = new Set([
   'GITHUB_TOKEN'
 ])
 
-const MAX_VALUE_LENGTH = 512
-
 function assertValidKey(key: unknown): asserts key is string {
   if (typeof key !== 'string' || !VALID_KEYS.has(key)) {
-    throw new Error(`Unknown setting key: ${String(key)}`)
-  }
-}
-
-function assertValidValue(value: unknown): asserts value is string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_VALUE_LENGTH) {
-    throw new Error('Invalid value: must be a non-empty string under 512 characters')
+    throw new Error(`Unknown setting key`)
   }
 }
 
 export function registerSettingsIpc(): void {
-  ipcMain.handle('settings:get', async (_event, key: string): Promise<string | null> => {
-    assertValidKey(key)
-    return keytar.getPassword(SERVICE, key)
+  ipcMain.handle('settings:get', async (event, key: string): Promise<string | null> => {
+    try {
+      validateSender(event)
+      checkRateLimit('settings:get')
+      assertValidKey(key)
+      auditLog('settings:get', key)
+      return await keytar.getPassword(SERVICE, key)
+    } catch (err) {
+      auditLog('settings:get:error', safeErrorMessage(err))
+      throw new Error(safeErrorMessage(err))
+    }
   })
 
-  ipcMain.handle('settings:set', async (_event, key: string, value: string): Promise<void> => {
-    assertValidKey(key)
-    assertValidValue(value)
-    await keytar.setPassword(SERVICE, key, value)
+  ipcMain.handle('settings:set', async (event, key: string, value: string): Promise<void> => {
+    try {
+      validateSender(event)
+      checkRateLimit('settings:set')
+      assertValidKey(key)
+      assertSafeString(value, 'value', MAX_VALUE_LENGTH)
+      await keytar.setPassword(SERVICE, key, value)
+      auditLog('settings:set', key)
+    } catch (err) {
+      auditLog('settings:set:error', safeErrorMessage(err))
+      throw new Error(safeErrorMessage(err))
+    }
   })
 
-  ipcMain.handle('settings:delete', async (_event, key: string): Promise<void> => {
-    assertValidKey(key)
-    await keytar.deletePassword(SERVICE, key)
+  ipcMain.handle('settings:delete', async (event, key: string): Promise<void> => {
+    try {
+      validateSender(event)
+      checkRateLimit('settings:delete')
+      assertValidKey(key)
+      await keytar.deletePassword(SERVICE, key)
+      auditLog('settings:delete', key)
+    } catch (err) {
+      auditLog('settings:delete:error', safeErrorMessage(err))
+      throw new Error(safeErrorMessage(err))
+    }
   })
 }
