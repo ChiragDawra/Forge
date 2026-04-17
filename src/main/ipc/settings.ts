@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import keytar from 'keytar'
 import { validateSender, checkRateLimit, assertSafeString, auditLog, safeErrorMessage } from './security'
+import { reinitAiClients } from '../ai/init'
 
 const SERVICE = 'forge'
 const MAX_VALUE_LENGTH = 512
@@ -41,6 +42,8 @@ export function registerSettingsIpc(): void {
       assertSafeString(value, 'value', MAX_VALUE_LENGTH)
       await keytar.setPassword(SERVICE, key, value)
       auditLog('settings:set', key)
+      // Reinit AI clients so new key takes effect immediately (non-blocking)
+      reinitAiClients().catch(() => {/* silent — will retry on next call */})
     } catch (err) {
       auditLog('settings:set:error', safeErrorMessage(err))
       throw new Error(safeErrorMessage(err))

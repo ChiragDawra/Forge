@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { closeDb, initDb } from './db/client'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerProjectsIpc } from './ipc/projects'
+import { registerAiIpc } from './ipc/ai'
+import { initAiClients } from './ai/init'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -107,6 +109,13 @@ app.whenReady().then(() => {
 
   registerSettingsIpc()
   registerProjectsIpc()
+  registerAiIpc()
+
+  // Initialise AI clients from keychain (non-blocking — missing keys are ok)
+  initAiClients().catch((err) => {
+    console.warn('[AI] Client init warning:', err instanceof Error ? err.message : err)
+  })
+
   createWindow()
 
   app.on('activate', () => {
