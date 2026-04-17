@@ -10,6 +10,43 @@ export interface ProjectRow {
   updatedAt: number
 }
 
+export interface ModelResponse {
+  content: string
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+  model: string
+}
+
+export interface UsageSummaryRow {
+  modelName: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCostUsd: number
+  callCount: number
+}
+
+export interface UsageRow {
+  id: string
+  modelName: string
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+  calledAt: number
+  projectId: string | null
+  phaseId: string | null
+}
+
+export type TaskType =
+  | 'intake'
+  | 'planning'
+  | 'codegen'
+  | 'review'
+  | 'security'
+  | 'testing'
+  | 'deploy'
+  | 'generic'
+
 export interface ForgeApi {
   projects: {
     create(name: string, prompt: string): Promise<ProjectRow>
@@ -21,8 +58,13 @@ export interface ForgeApi {
     set(key: string, value: string): Promise<void>
     delete(key: string): Promise<void>
   }
-  // Agent IPC (Day 8+)
-  // Models IPC (Day 6)
+  ai: {
+    call(taskType: TaskType, prompt: string, projectId?: string, phaseId?: string): Promise<ModelResponse>
+    reinit(): Promise<void>
+    usageSummary(): Promise<UsageSummaryRow[]>
+    totalCost(): Promise<number>
+    usageByProject(projectId: string): Promise<UsageRow[]>
+  }
 }
 
 declare global {

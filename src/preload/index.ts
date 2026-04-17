@@ -4,19 +4,24 @@ import type { ForgeApi } from './index.d'
 
 const api: ForgeApi = {
   projects: {
-    create: (name: string, prompt: string) => ipcRenderer.invoke('projects:create', name, prompt),
+    create: (name, prompt) => ipcRenderer.invoke('projects:create', name, prompt),
     list: () => ipcRenderer.invoke('projects:list'),
-    get: (id: string) => ipcRenderer.invoke('projects:get', id)
+    get: (id) => ipcRenderer.invoke('projects:get', id)
   },
   settings: {
-    get: (key: string) => ipcRenderer.invoke('settings:get', key),
-    set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
-    delete: (key: string) => ipcRenderer.invoke('settings:delete', key)
+    get: (key) => ipcRenderer.invoke('settings:get', key),
+    set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+    delete: (key) => ipcRenderer.invoke('settings:delete', key)
+  },
+  ai: {
+    call: (taskType, prompt, projectId, phaseId) =>
+      ipcRenderer.invoke('ai:call', taskType, prompt, projectId, phaseId),
+    reinit: () => ipcRenderer.invoke('ai:reinit'),
+    usageSummary: () => ipcRenderer.invoke('ai:usage-summary'),
+    totalCost: () => ipcRenderer.invoke('ai:total-cost'),
+    usageByProject: (projectId) => ipcRenderer.invoke('ai:usage-by-project', projectId)
   }
-  // Agent IPC (Day 8+)
-  // Models IPC (Day 6)
 }
 
-// Expose to the renderer through the contextBridge
 contextBridge.exposeInMainWorld('electron', electronAPI)
 contextBridge.exposeInMainWorld('api', api)
