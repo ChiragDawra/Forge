@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Activity } from 'lucide-react'
+import { formatCost } from '@renderer/lib/format'
 
 const pageTitles: Record<string, string> = {
   '/': 'Home',
@@ -16,7 +17,7 @@ export default function Header(): React.JSX.Element {
     async function fetchCost(): Promise<void> {
       try {
         const cost = await window.api?.ai?.totalCost?.()
-        if (typeof cost === 'number') setTotalCost(cost)
+        if (typeof cost === 'number') setTotalCost((prev) => (prev === cost ? prev : cost))
       } catch {
         // Not in Electron or no data yet
       }
@@ -31,12 +32,7 @@ export default function Header(): React.JSX.Element {
     ? 'Project'
     : pageTitles[pathname] ?? 'Forge'
 
-  const costLabel =
-    totalCost === 0
-      ? '$0.00'
-      : totalCost < 0.01
-        ? `$${totalCost.toFixed(6)}`
-        : `$${totalCost.toFixed(4)}`
+  const costLabel = formatCost(totalCost)
 
   return (
     <header className="drag-region flex h-12 items-center justify-between border-b border-border bg-card px-4">
