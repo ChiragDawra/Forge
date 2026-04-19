@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core'
 
 export const projects = sqliteTable('projects', {
   id: text('id').primaryKey(),
@@ -31,16 +31,25 @@ export const phaseLogs = sqliteTable('phase_logs', {
   message: text('message').notNull()
 })
 
-export const modelUsage = sqliteTable('model_usage', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').references(() => projects.id),
-  phaseId: text('phase_id').references(() => phases.id),
-  modelName: text('model_name').notNull(),
-  inputTokens: integer('input_tokens').notNull().default(0),
-  outputTokens: integer('output_tokens').notNull().default(0),
-  costUsd: real('cost_usd').notNull().default(0),
-  calledAt: integer('called_at', { mode: 'timestamp' }).notNull()
-})
+export const modelUsage = sqliteTable(
+  'model_usage',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id').references(() => projects.id),
+    phaseId: text('phase_id').references(() => phases.id),
+    modelName: text('model_name').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    costUsd: real('cost_usd').notNull().default(0),
+    calledAt: integer('called_at', { mode: 'timestamp' }).notNull()
+  },
+  (t) => ({
+    // Hot paths: ai:usage-daily (filter by calledAt, group by model_name)
+    // and ai:usage-by-project (filter by project_id, order by calledAt).
+    calledAtIdx: index('idx_model_usage_called_at').on(t.calledAt),
+    projectCalledAtIdx: index('idx_model_usage_project_called_at').on(t.projectId, t.calledAt)
+  })
+)
 
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
