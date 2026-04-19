@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { desc, sum, eq } from 'drizzle-orm'
+import { desc, sum, eq, count, gte, max, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { modelUsage } from '../db/schema'
 import { routeTask, type TaskType } from '../ai/router'
@@ -13,6 +13,15 @@ export interface UsageSummaryRow {
   totalOutputTokens: number
   totalCostUsd: number
   callCount: number
+  lastUsedAt: number | null
+}
+
+export interface DailyUsageRow {
+  date: string // YYYY-MM-DD
+  modelName: string
+  totalCostUsd: number
+  totalTokens: number
+  callCount: number
 }
 
 export interface UsageRow {
@@ -24,6 +33,17 @@ export interface UsageRow {
   calledAt: number
   projectId: string | null
   phaseId: string | null
+}
+
+// Drizzle's timestamp mode stores unix seconds; direct selects give Date,
+// but aggregations (max, min) and raw SQL give the raw integer. Normalise.
+function toMillis(v: unknown): number | null {
+  if (v == null) return null
+  if (v instanceof Date) return v.getTime()
+  const n = Number(v)
+  if (!Number.isFinite(n)) return null
+  // Seconds since epoch are all < 1e12 well past year 33000
+  return n < 1e12 ? n * 1000 : n
 }
 
 export function registerAiIpc(): void {
@@ -78,7 +98,8 @@ export function registerAiIpc(): void {
           totalInputTokens: sum(modelUsage.inputTokens),
           totalOutputTokens: sum(modelUsage.outputTokens),
           totalCostUsd: sum(modelUsage.costUsd),
-          callCount: sum(modelUsage.id)
+          callCount: count(modelUsage.id),
+          lastUsedAt: max(modelUsage.calledAt)
         })
         .from(modelUsage)
         .groupBy(modelUsage.modelName)
@@ -88,7 +109,8 @@ export function registerAiIpc(): void {
         totalInputTokens: Number(r.totalInputTokens ?? 0),
         totalOutputTokens: Number(r.totalOutputTokens ?? 0),
         totalCostUsd: Number(r.totalCostUsd ?? 0),
-        callCount: Number(r.callCount ?? 0)
+        callCount: Number(r.callCount ?? 0),
+        lastUsedAt: toMillis(r.lastUsedAt)
       }))
     } catch (err) {
       auditLog('ai:usage-summary:error', safeErrorMessage(err))
@@ -114,6 +136,46 @@ export function registerAiIpc(): void {
     }
   })
 
+  // ── Get per-day per-model usage for the last N days (chart) ───────────
+  ipcMain.handle('ai:usage-daily', async (event, days = 7): Promise<DailyUsageRow[]> => {
+    try {
+      validateSender(event)
+      checkRateLimit('ai:usage-daily')
+
+      const n = Math.min(Math.max(Number(days) || 7, 1), 90)
+      const sinceMs = Date.now() - n * 24 * 60 * 60 * 1000
+      const sinceDate = new Date(sinceMs)
+
+      const db = getDb()
+      // Bucket by YYYY-MM-DD in local time. called_at is stored as unix seconds.
+      const dateExpr = sql<string>`strftime('%Y-%m-%d', ${modelUsage.calledAt}, 'unixepoch', 'localtime')`
+
+      const rows = await db
+        .select({
+          date: dateExpr,
+          modelName: modelUsage.modelName,
+          totalCostUsd: sum(modelUsage.costUsd),
+          totalInputTokens: sum(modelUsage.inputTokens),
+          totalOutputTokens: sum(modelUsage.outputTokens),
+          callCount: count(modelUsage.id)
+        })
+        .from(modelUsage)
+        .where(gte(modelUsage.calledAt, sinceDate))
+        .groupBy(dateExpr, modelUsage.modelName)
+
+      return rows.map((r) => ({
+        date: r.date,
+        modelName: r.modelName,
+        totalCostUsd: Number(r.totalCostUsd ?? 0),
+        totalTokens: Number(r.totalInputTokens ?? 0) + Number(r.totalOutputTokens ?? 0),
+        callCount: Number(r.callCount ?? 0)
+      }))
+    } catch (err) {
+      auditLog('ai:usage-daily:error', safeErrorMessage(err))
+      throw new Error(safeErrorMessage(err))
+    }
+  })
+
   // ── Get recent usage rows for a project ───────────────────────────────
   ipcMain.handle('ai:usage-by-project', async (event, projectId: string): Promise<UsageRow[]> => {
     try {
@@ -135,7 +197,7 @@ export function registerAiIpc(): void {
         inputTokens: r.inputTokens,
         outputTokens: r.outputTokens,
         costUsd: r.costUsd,
-        calledAt: r.calledAt instanceof Date ? r.calledAt.getTime() : Number(r.calledAt),
+        calledAt: toMillis(r.calledAt) ?? 0,
         projectId: r.projectId,
         phaseId: r.phaseId
       }))
