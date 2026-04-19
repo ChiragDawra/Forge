@@ -18,6 +18,7 @@ const api: ForgeApi = {
       ipcRenderer.invoke('ai:call', taskType, prompt, projectId, phaseId),
     reinit: () => ipcRenderer.invoke('ai:reinit'),
     usageSummary: () => ipcRenderer.invoke('ai:usage-summary'),
+    usageDaily: (days) => ipcRenderer.invoke('ai:usage-daily', days),
     totalCost: () => ipcRenderer.invoke('ai:total-cost'),
     usageByProject: (projectId) => ipcRenderer.invoke('ai:usage-by-project', projectId)
   }

@@ -24,6 +24,15 @@ export interface UsageSummaryRow {
   totalOutputTokens: number
   totalCostUsd: number
   callCount: number
+  lastUsedAt: number | null
+}
+
+export interface DailyUsageRow {
+  date: string // YYYY-MM-DD local
+  modelName: string
+  totalCostUsd: number
+  totalTokens: number
+  callCount: number
 }
 
 export interface UsageRow {
@@ -62,6 +71,7 @@ export interface ForgeApi {
     call(taskType: TaskType, prompt: string, projectId?: string, phaseId?: string): Promise<ModelResponse>
     reinit(): Promise<void>
     usageSummary(): Promise<UsageSummaryRow[]>
+    usageDaily(days?: number): Promise<DailyUsageRow[]>
     totalCost(): Promise<number>
     usageByProject(projectId: string): Promise<UsageRow[]>
   }
