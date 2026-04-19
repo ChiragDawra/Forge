@@ -14,6 +14,39 @@ export const MODEL_COSTS: Record<ModelName, { input: number; output: number }> =
   [MODELS.GEMINI_FLASH]: { input: 0.1, output: 0.4 }
 }
 
+// Short, human-friendly label for each model id
+export const MODEL_LABELS: Record<ModelName, string> = {
+  [MODELS.CLAUDE_OPUS]: 'Opus',
+  [MODELS.CLAUDE_BASE]: 'Sonnet',
+  [MODELS.GEMINI_FLASH]: 'Gemini'
+}
+
+// Tailwind classes + SVG fill per model (used by badges, cards, chart bars).
+// Keeps colour source-of-truth next to the model list so renames touch one place.
+export const MODEL_COLORS: Record<
+  ModelName,
+  { bg: string; text: string; border: string; fill: string }
+> = {
+  [MODELS.CLAUDE_OPUS]: {
+    bg: 'bg-purple-500/15',
+    text: 'text-purple-300',
+    border: 'border-purple-500/30',
+    fill: '#a855f7'
+  },
+  [MODELS.CLAUDE_BASE]: {
+    bg: 'bg-blue-500/15',
+    text: 'text-blue-300',
+    border: 'border-blue-500/30',
+    fill: '#3b82f6'
+  },
+  [MODELS.GEMINI_FLASH]: {
+    bg: 'bg-amber-500/15',
+    text: 'text-amber-300',
+    border: 'border-amber-500/30',
+    fill: '#f59e0b'
+  }
+}
+
 // Phase definitions (0-indexed)
 export const PHASES = [
   { id: 0, name: 'Intake', slug: '0-intake' },
