@@ -21,6 +21,30 @@ const api: ForgeApi = {
     usageDaily: (days) => ipcRenderer.invoke('ai:usage-daily', days),
     totalCost: () => ipcRenderer.invoke('ai:total-cost'),
     usageByProject: (projectId) => ipcRenderer.invoke('ai:usage-by-project', projectId)
+  },
+  tools: {
+    repomix: (targetDir, include, ignore) =>
+      ipcRenderer.invoke('tools:repomix', targetDir, include, ignore),
+    repomixToFile: (targetDir, savePath, include, ignore) =>
+      ipcRenderer.invoke('tools:repomix-to-file', targetDir, savePath, include, ignore),
+    context7Resolve: (libraryName) =>
+      ipcRenderer.invoke('tools:context7-resolve', libraryName),
+    context7Docs: (libraryId, topic, maxTokens) =>
+      ipcRenderer.invoke('tools:context7-docs', libraryId, topic, maxTokens),
+    context7Lookup: (libraryName, topic, maxTokens) =>
+      ipcRenderer.invoke('tools:context7-lookup', libraryName, topic, maxTokens)
+  },
+  agent: {
+    decompose: (phaseSlug, phaseGoal, projectId) =>
+      ipcRenderer.invoke('agent:decompose', phaseSlug, phaseGoal, projectId),
+    executeQueue: (phaseSlug, projectId) =>
+      ipcRenderer.invoke('agent:execute-queue', phaseSlug, projectId),
+    queue: (phaseSlug) => ipcRenderer.invoke('agent:queue', phaseSlug),
+    queueSummary: (phaseSlug) => ipcRenderer.invoke('agent:queue-summary', phaseSlug),
+    clearQueue: (phaseSlug) => ipcRenderer.invoke('agent:clear-queue', phaseSlug),
+    logSession: (projectRoot, phaseSlug, dayNumber, projectId) =>
+      ipcRenderer.invoke('agent:log-session', projectRoot, phaseSlug, dayNumber, projectId),
+    sessions: () => ipcRenderer.invoke('agent:sessions')
   }
 }
 
