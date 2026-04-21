@@ -5,6 +5,8 @@ import { closeDb, initDb } from './db/client'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerProjectsIpc } from './ipc/projects'
 import { registerAiIpc } from './ipc/ai'
+import { registerToolsIpc } from './ipc/tools'
+import { registerAgentIpc } from './ipc/agent'
 import { initAiClients } from './ai/init'
 
 function createWindow(): void {
@@ -110,6 +112,8 @@ app.whenReady().then(() => {
   registerSettingsIpc()
   registerProjectsIpc()
   registerAiIpc()
+  registerToolsIpc()
+  registerAgentIpc()
 
   // Initialise AI clients from keychain (non-blocking — missing keys are ok)
   initAiClients().catch((err) => {
