@@ -46,6 +46,53 @@ export interface UsageRow {
   phaseId: string | null
 }
 
+export interface RepomixFile {
+  path: string
+  chars: number
+}
+
+export interface RepomixSummary {
+  root: string
+  totalFiles: number
+  totalChars: number
+  estimatedTokens: number
+  topFiles: RepomixFile[]
+  rawXmlPath?: string
+}
+
+export interface Context7Response {
+  library: string
+  topic: string | null
+  content: string
+  source: string
+  fetchedAt: number
+}
+
+export interface AtomicTask {
+  id: number
+  title: string
+  rationale: string
+  estimate: 'S' | 'M' | 'L'
+  dependsOn: number[]
+}
+
+export interface DecomposeResult {
+  goal: string
+  tasks: AtomicTask[]
+  model: string
+  costUsd: number
+}
+
+export interface SessionLogResult {
+  outPath: string
+  sessionId: string
+  projectId: string | null
+  durationMs: number | null
+  totalCostUsd: number
+  totalCalls: number
+  bytesWritten: number
+}
+
 export type TaskType =
   | 'intake'
   | 'planning'
@@ -74,6 +121,18 @@ export interface ForgeApi {
     usageDaily(days?: number): Promise<DailyUsageRow[]>
     totalCost(): Promise<number>
     usageByProject(projectId: string): Promise<UsageRow[]>
+  }
+  tools: {
+    repomix(projectRoot: string, ignore?: string[]): Promise<RepomixSummary>
+    context7(library: string, topic?: string, tokens?: number): Promise<Context7Response>
+  }
+  agent: {
+    decompose(goal: string, projectId?: string, phaseId?: string): Promise<DecomposeResult>
+    writeSessionLog(
+      sessionId: string,
+      outPath: string,
+      narrative?: string
+    ): Promise<SessionLogResult>
   }
 }
 

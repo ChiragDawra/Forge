@@ -21,6 +21,17 @@ const api: ForgeApi = {
     usageDaily: (days) => ipcRenderer.invoke('ai:usage-daily', days),
     totalCost: () => ipcRenderer.invoke('ai:total-cost'),
     usageByProject: (projectId) => ipcRenderer.invoke('ai:usage-by-project', projectId)
+  },
+  tools: {
+    repomix: (projectRoot, ignore) => ipcRenderer.invoke('tools:repomix', projectRoot, ignore),
+    context7: (library, topic, tokens) =>
+      ipcRenderer.invoke('tools:context7', library, topic, tokens)
+  },
+  agent: {
+    decompose: (goal, projectId, phaseId) =>
+      ipcRenderer.invoke('agent:decompose', goal, projectId, phaseId),
+    writeSessionLog: (sessionId, outPath, narrative) =>
+      ipcRenderer.invoke('agent:write-session-log', sessionId, outPath, narrative)
   }
 }
 
