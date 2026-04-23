@@ -7,6 +7,7 @@ import { registerProjectsIpc } from './ipc/projects'
 import { registerAiIpc } from './ipc/ai'
 import { registerToolsIpc } from './ipc/tools'
 import { registerAgentIpc } from './ipc/agent'
+import { registerPhasesIpc } from './ipc/phases'
 import { initAiClients } from './ai/init'
 
 function createWindow(): void {
@@ -114,6 +115,7 @@ app.whenReady().then(() => {
   registerAiIpc()
   registerToolsIpc()
   registerAgentIpc()
+  registerPhasesIpc()
 
   // Initialise AI clients from keychain (non-blocking — missing keys are ok)
   initAiClients().catch((err) => {

@@ -123,6 +123,32 @@ export interface LogSessionResult {
   markdown: string
 }
 
+export interface IntakeQuestion {
+  id: number
+  question: string
+  why: string
+}
+
+export interface IntakeDraft {
+  rawIdea: string
+  expanded: string
+  questions: IntakeQuestion[]
+  model: string
+  costUsd: number
+}
+
+export interface IntakeAnswer {
+  id: number
+  answer: string
+}
+
+export interface IntakeJson {
+  rawIdea: string
+  expanded: string
+  clarifications: { question: string; answer: string }[]
+  finalisedAt: number
+}
+
 export interface ForgeApi {
   projects: {
     create(name: string, prompt: string): Promise<ProjectRow>
@@ -157,6 +183,14 @@ export interface ForgeApi {
     clearQueue(phaseSlug: string): Promise<void>
     logSession(projectRoot: string, phaseSlug: string, dayNumber: number, projectId?: string): Promise<LogSessionResult>
     sessions(): Promise<SessionEntry[]>
+  }
+  phases: {
+    intakeRun(rawIdea: string, projectId?: string): Promise<IntakeDraft>
+    intakeFinalise(
+      draft: IntakeDraft,
+      answers: IntakeAnswer[],
+      projectId: string
+    ): Promise<{ intake: IntakeJson; path: string }>
   }
 }
 

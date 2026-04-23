@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Rocket, Loader2 } from 'lucide-react'
+import { Rocket, Loader2, CheckCircle2 } from 'lucide-react'
 import { useProjectsStore } from '@renderer/lib/stores/projects'
-import type { ProjectRow } from '../../../preload/index.d'
+import PromptInput from '@renderer/components/project/PromptInput'
+import ApprovalGate from '@renderer/components/project/ApprovalGate'
+import type {
+  ProjectRow,
+  IntakeDraft,
+  IntakeJson
+} from '../../../preload/index.d'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -105,6 +111,45 @@ export default function Project(): React.JSX.Element {
     )
   }
 
+  // Intake phase state (Day 8)
+  const [intakeBusy, setIntakeBusy] = useState(false)
+  const [intakeDraft, setIntakeDraft] = useState<IntakeDraft | null>(null)
+  const [intakeResult, setIntakeResult] = useState<IntakeJson | null>(null)
+  const [intakeError, setIntakeError] = useState<string | null>(null)
+  const [gateOpen, setGateOpen] = useState(false)
+
+  async function runIntake(raw: string): Promise<void> {
+    if (!id || id === 'new') return
+    setIntakeBusy(true)
+    setIntakeError(null)
+    try {
+      const draft = await window.api.phases.intakeRun(raw, id)
+      setIntakeDraft(draft)
+      setGateOpen(true)
+    } catch (e) {
+      setIntakeError(e instanceof Error ? e.message : 'Intake failed')
+    } finally {
+      setIntakeBusy(false)
+    }
+  }
+
+  async function finaliseIntake(
+    answers: { id: number; answer: string }[]
+  ): Promise<void> {
+    if (!id || id === 'new' || !intakeDraft) return
+    setIntakeBusy(true)
+    setIntakeError(null)
+    try {
+      const { intake } = await window.api.phases.intakeFinalise(intakeDraft, answers, id)
+      setIntakeResult(intake)
+      setGateOpen(false)
+    } catch (e) {
+      setIntakeError(e instanceof Error ? e.message : 'Finalise failed')
+    } finally {
+      setIntakeBusy(false)
+    }
+  }
+
   // Existing project view
   if (loadingProject) {
     return (
@@ -146,9 +191,59 @@ export default function Project(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-        Phase pipeline will appear here (Day 8+)
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+            Phase 0
+          </span>
+          <h3 className="text-sm font-semibold">Intake</h3>
+        </div>
+
+        {intakeResult ? (
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+              Intake approved
+            </div>
+            <p className="text-sm whitespace-pre-wrap">{intakeResult.expanded}</p>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none">
+                {intakeResult.clarifications.length} clarifications
+              </summary>
+              <ul className="mt-2 space-y-2">
+                {intakeResult.clarifications.map((c, i) => (
+                  <li key={i} className="space-y-0.5">
+                    <p className="font-medium text-foreground">{c.question}</p>
+                    <p>{c.answer || <em>(skipped)</em>}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </div>
+        ) : (
+          <PromptInput
+            onSubmit={runIntake}
+            busy={intakeBusy}
+            initial={project.prompt}
+          />
+        )}
+
+        {intakeError ? (
+          <p className="text-sm text-destructive">{intakeError}</p>
+        ) : null}
       </div>
+
+      <ApprovalGate
+        open={gateOpen}
+        draft={intakeDraft}
+        busy={intakeBusy}
+        onCancel={() => setGateOpen(false)}
+        onEdit={() => {
+          setGateOpen(false)
+          setIntakeDraft(null)
+        }}
+        onApprove={finaliseIntake}
+      />
     </div>
   )
 }

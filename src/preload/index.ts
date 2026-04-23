@@ -45,6 +45,12 @@ const api: ForgeApi = {
     logSession: (projectRoot, phaseSlug, dayNumber, projectId) =>
       ipcRenderer.invoke('agent:log-session', projectRoot, phaseSlug, dayNumber, projectId),
     sessions: () => ipcRenderer.invoke('agent:sessions')
+  },
+  phases: {
+    intakeRun: (rawIdea, projectId) =>
+      ipcRenderer.invoke('phases:intake:run', rawIdea, projectId),
+    intakeFinalise: (draft, answers, projectId) =>
+      ipcRenderer.invoke('phases:intake:finalise', draft, answers, projectId)
   }
 }
 
