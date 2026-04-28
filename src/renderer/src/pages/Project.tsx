@@ -4,10 +4,12 @@ import { Rocket, Loader2, CheckCircle2 } from 'lucide-react'
 import { useProjectsStore } from '@renderer/lib/stores/projects'
 import PromptInput from '@renderer/components/project/PromptInput'
 import ApprovalGate from '@renderer/components/project/ApprovalGate'
+import PlanViewer from '@renderer/components/project/PlanViewer'
 import type {
   ProjectRow,
   IntakeDraft,
-  IntakeJson
+  IntakeJson,
+  PlanningResult
 } from '../../../preload/index.d'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -150,6 +152,28 @@ export default function Project(): React.JSX.Element {
     }
   }
 
+  // Planning phase state (Day 9)
+  const [planningBusy, setPlanningBusy] = useState(false)
+  const [planningResult, setPlanningResult] = useState<PlanningResult | null>(null)
+  const [planningError, setPlanningError] = useState<string | null>(null)
+
+  async function runPlanning(intake: IntakeJson): Promise<void> {
+    if (!id || id === 'new') return
+    setPlanningBusy(true)
+    setPlanningError(null)
+    try {
+      const result = await window.api.phases.planningRun(
+        { expanded: intake.expanded, clarifications: intake.clarifications },
+        id
+      )
+      setPlanningResult(result)
+    } catch (e) {
+      setPlanningError(e instanceof Error ? e.message : 'Planning failed')
+    } finally {
+      setPlanningBusy(false)
+    }
+  }
+
   // Existing project view
   if (loadingProject) {
     return (
@@ -232,6 +256,47 @@ export default function Project(): React.JSX.Element {
           <p className="text-sm text-destructive">{intakeError}</p>
         ) : null}
       </div>
+
+      {/* Phase 1: Planning — visible once intake is approved */}
+      {intakeResult && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                Phase 1
+              </span>
+              <h3 className="text-sm font-semibold">Planning</h3>
+            </div>
+            {!planningResult && (
+              <button
+                onClick={() => runPlanning(intakeResult)}
+                disabled={planningBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {planningBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                {planningBusy ? 'Generating…' : 'Run Planning'}
+              </button>
+            )}
+          </div>
+
+          {planningResult ? (
+            <PlanViewer result={planningResult} />
+          ) : planningBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generating PRD and architecture…
+            </div>
+          ) : null}
+
+          {planningError && (
+            <p className="text-sm text-destructive">{planningError}</p>
+          )}
+        </div>
+      )}
 
       <ApprovalGate
         open={gateOpen}

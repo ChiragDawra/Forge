@@ -1,6 +1,7 @@
-// IPC for the phase pipeline. Day 8 exposes phase 0 (intake) — later
-// days bolt on 1..8 using the same shape so the renderer can uniformly
-// show "run → approve → finalise" for every phase.
+// IPC for the phase pipeline.
+// Phase 0 (intake): run → finalise → intake.json
+// Phase 1 (planning): run → prd.md + architecture.json
+// Later phases bolt on using the same shape.
 
 import { ipcMain, app } from 'electron'
 import { writeFile, mkdir } from 'fs/promises'
@@ -13,6 +14,11 @@ import {
   type IntakeAnswer,
   type IntakeJson
 } from '../agent/phases/0-intake'
+import {
+  runPlanning,
+  type PlanningInput,
+  type PlanningResult
+} from '../agent/phases/1-planning'
 import {
   validateSender,
   checkRateLimit,
@@ -35,9 +41,7 @@ export function registerPhasesIpc(): void {
 
         const opts: { projectId?: string } = {}
         if (typeof projectId === 'string') {
-          if (!UUID_RE.test(projectId)) {
-            throw new Error('projectId must be a UUID')
-          }
+          if (!UUID_RE.test(projectId)) throw new Error('projectId must be a UUID')
           opts.projectId = projectId
         }
 
@@ -51,8 +55,6 @@ export function registerPhasesIpc(): void {
   )
 
   // ── Phase 0: finalise with user answers + persist intake.json ───────
-  // The draft + answers are re-sent from the renderer (stateless main);
-  // we only persist the finalised JSON to disk.
   ipcMain.handle(
     'phases:intake:finalise',
     async (
@@ -80,17 +82,12 @@ export function registerPhasesIpc(): void {
             typeof (a as IntakeAnswer).answer === 'string' &&
             (a as IntakeAnswer).answer.length < 4000
           ) {
-            safeAnswers.push({
-              id: (a as IntakeAnswer).id,
-              answer: (a as IntakeAnswer).answer
-            })
+            safeAnswers.push({ id: (a as IntakeAnswer).id, answer: (a as IntakeAnswer).answer })
           }
         }
 
         const intake = runFinalise(draft as IntakeDraft, safeAnswers)
 
-        // intake.json is written under userData/<projectId>/intake.json so
-        // it's isolated per project and caller can't point us elsewhere.
         const dir = join(app.getPath('userData'), 'projects', projectId)
         await mkdir(dir, { recursive: true })
         const outPath = join(dir, 'intake.json')
@@ -104,7 +101,42 @@ export function registerPhasesIpc(): void {
       }
     }
   )
+
+  // ── Phase 1: run planning (PRD + architecture) ──────────────────────
+  ipcMain.handle(
+    'phases:planning:run',
+    async (event, input: unknown, projectId?: unknown): Promise<PlanningResult> => {
+      try {
+        validateSender(event)
+        checkRateLimit('phases:planning:run')
+
+        if (!isPlanningInput(input)) throw new Error('input is malformed')
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+
+        auditLog('phases:planning:run', `projectId=${projectId}`)
+        const result = await runPlanning(input as PlanningInput, { projectId })
+
+        // Persist artefacts under userData/<projectId>/
+        const dir = join(app.getPath('userData'), 'projects', projectId)
+        await mkdir(dir, { recursive: true })
+        await Promise.all([
+          writeFile(join(dir, 'prd.md'), result.prd, 'utf8'),
+          writeFile(join(dir, 'architecture.json'), JSON.stringify(result.architecture, null, 2), 'utf8')
+        ])
+
+        auditLog('phases:planning:run:done', `projectId=${projectId}`)
+        return result
+      } catch (err) {
+        auditLog('phases:planning:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
 }
+
+// ── Structural guards ────────────────────────────────────────────────
 
 /**
  * Narrow a cross-IPC value to IntakeDraft shape — the sandboxed renderer
@@ -124,6 +156,23 @@ function isDraft(v: unknown): v is IntakeDraft {
         q !== null &&
         Number.isInteger((q as { id?: unknown }).id) &&
         typeof (q as { question?: unknown }).question === 'string'
+    )
+  )
+}
+
+function isPlanningInput(v: unknown): v is PlanningInput {
+  if (typeof v !== 'object' || v === null) return false
+  const p = v as Partial<PlanningInput>
+  return (
+    typeof p.expanded === 'string' &&
+    p.expanded.trim().length > 0 &&
+    Array.isArray(p.clarifications) &&
+    p.clarifications.every(
+      (c) =>
+        typeof c === 'object' &&
+        c !== null &&
+        typeof (c as { question?: unknown }).question === 'string' &&
+        typeof (c as { answer?: unknown }).answer === 'string'
     )
   )
 }
