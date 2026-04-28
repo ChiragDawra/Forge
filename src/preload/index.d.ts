@@ -149,6 +149,51 @@ export interface IntakeJson {
   finalisedAt: number
 }
 
+export interface ArchStack {
+  frontend: string
+  backend: string
+  database: string
+  auth: string
+  hosting: string
+  other: string[]
+}
+
+export interface ArchFolderEntry {
+  path: string
+  description: string
+}
+
+export interface ArchDecision {
+  decision: string
+  rationale: string
+}
+
+export interface ArchPhase {
+  name: string
+  description: string
+  order: number
+}
+
+export interface ArchitectureJson {
+  stack: ArchStack
+  folderTree: ArchFolderEntry[]
+  keyDecisions: ArchDecision[]
+  phases: ArchPhase[]
+}
+
+export interface PlanningInput {
+  expanded: string
+  clarifications: { question: string; answer: string }[]
+}
+
+export interface PlanningResult {
+  prd: string
+  architecture: ArchitectureJson
+  prdModel: string
+  archModel: string
+  totalCostUsd: number
+}
+
 export interface ForgeApi {
   projects: {
     create(name: string, prompt: string): Promise<ProjectRow>
@@ -191,6 +236,7 @@ export interface ForgeApi {
       answers: IntakeAnswer[],
       projectId: string
     ): Promise<{ intake: IntakeJson; path: string }>
+    planningRun(input: PlanningInput, projectId: string): Promise<PlanningResult>
   }
 }
 

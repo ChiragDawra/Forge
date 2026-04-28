@@ -50,7 +50,9 @@ const api: ForgeApi = {
     intakeRun: (rawIdea, projectId) =>
       ipcRenderer.invoke('phases:intake:run', rawIdea, projectId),
     intakeFinalise: (draft, answers, projectId) =>
-      ipcRenderer.invoke('phases:intake:finalise', draft, answers, projectId)
+      ipcRenderer.invoke('phases:intake:finalise', draft, answers, projectId),
+    planningRun: (input, projectId) =>
+      ipcRenderer.invoke('phases:planning:run', input, projectId)
   }
 }
 
