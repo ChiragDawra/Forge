@@ -53,6 +53,18 @@ const api: ForgeApi = {
       ipcRenderer.invoke('phases:intake:finalise', draft, answers, projectId),
     planningRun: (input, projectId) =>
       ipcRenderer.invoke('phases:planning:run', input, projectId)
+  },
+  orchestrator: {
+    start: (projectId, startPhase) =>
+      ipcRenderer.invoke('orchestrator:start', projectId, startPhase),
+    approve: (projectId) => ipcRenderer.invoke('orchestrator:approve', projectId),
+    cancel: (projectId) => ipcRenderer.invoke('orchestrator:cancel', projectId),
+    phases: (projectId) => ipcRenderer.invoke('orchestrator:phases', projectId),
+    onEvent: (cb) => {
+      const handler = (_e: Electron.IpcRendererEvent, evt: unknown) => cb(evt)
+      ipcRenderer.on('orchestrator:event', handler)
+      return () => ipcRenderer.removeListener('orchestrator:event', handler)
+    }
   }
 }
 
