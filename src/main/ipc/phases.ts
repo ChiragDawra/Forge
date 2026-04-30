@@ -21,6 +21,7 @@ import {
 } from '../agent/phases/1-planning'
 import { runDesign, type DesignResult } from '../agent/phases/2-design'
 import { runScaffold, type ScaffoldResult } from '../agent/phases/3-scaffold'
+import { runCodegen, type CodegenResult } from '../agent/phases/4-codegen'
 import {
   validateSender,
   checkRateLimit,
@@ -190,6 +191,37 @@ export function registerPhasesIpc(): void {
         return await runScaffold(projectName as string, architecture, { projectId })
       } catch (err) {
         auditLog('phases:scaffold:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
+
+  // ── Phase 4: codegen — implement files from scaffold ────────────────
+  ipcMain.handle(
+    'phases:codegen:run',
+    async (event, projectId: unknown, scaffoldSlug: unknown): Promise<CodegenResult> => {
+      try {
+        validateSender(event)
+        checkRateLimit('phases:codegen:run')
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+        assertSafeString(scaffoldSlug, 'scaffoldSlug', 100)
+
+        auditLog('phases:codegen:run', `projectId=${projectId} slug=${scaffoldSlug}`)
+
+        // Auto-approve each batch (renderer-driven codegen uses events instead)
+        const autoApprove = async (): Promise<boolean> => true
+
+        return await runCodegen(
+          projectId,
+          scaffoldSlug as string,
+          autoApprove,
+          (msg) => console.log('[codegen]', msg),
+          { projectId }
+        )
+      } catch (err) {
+        auditLog('phases:codegen:run:error', safeErrorMessage(err))
         throw new Error(safeErrorMessage(err))
       }
     }
