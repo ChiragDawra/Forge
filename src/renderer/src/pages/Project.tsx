@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Rocket, Loader2, CheckCircle2 } from 'lucide-react'
+import { Rocket, Loader2, CheckCircle2, Play } from 'lucide-react'
 import { useProjectsStore } from '@renderer/lib/stores/projects'
 import PromptInput from '@renderer/components/project/PromptInput'
 import ApprovalGate from '@renderer/components/project/ApprovalGate'
 import PlanViewer from '@renderer/components/project/PlanViewer'
+import PhaseTracker from '@renderer/components/project/PhaseTracker'
+import LogStream, { eventToLogLine } from '@renderer/components/project/LogStream'
+import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
   IntakeDraft,
   IntakeJson,
-  PlanningResult
+  PlanningResult,
+  PhaseInfo,
+  OrchestratorEvent
 } from '../../../preload/index.d'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -174,6 +179,50 @@ export default function Project(): React.JSX.Element {
     }
   }
 
+  // Orchestrator state (Day 10)
+  const [orchPhases, setOrchPhases] = useState<PhaseInfo[]>([])
+  const [logLines, setLogLines] = useState<LogLine[]>([])
+  const [orchRunning, setOrchRunning] = useState(false)
+  const unsubRef = useRef<(() => void) | null>(null)
+
+  function subscribeOrchestrator(): void {
+    if (unsubRef.current) return
+    unsubRef.current = window.api.orchestrator.onEvent((evt: OrchestratorEvent) => {
+      if (evt.phases) setOrchPhases(evt.phases)
+      const line = eventToLogLine(evt)
+      if (line) setLogLines((prev) => [...prev, line])
+      if (evt.type === 'pipeline:done' || evt.type === 'pipeline:cancelled') {
+        setOrchRunning(false)
+      }
+    })
+  }
+
+  async function startPipeline(): Promise<void> {
+    if (!id || id === 'new') return
+    setLogLines([])
+    subscribeOrchestrator()
+    setOrchRunning(true)
+    const res = await window.api.orchestrator.start(id, 0)
+    setOrchPhases(res.phases)
+  }
+
+  async function approvePipeline(): Promise<void> {
+    if (!id || id === 'new') return
+    await window.api.orchestrator.approve(id)
+  }
+
+  async function cancelPipeline(): Promise<void> {
+    if (!id || id === 'new') return
+    await window.api.orchestrator.cancel(id)
+    setOrchRunning(false)
+    if (unsubRef.current) { unsubRef.current(); unsubRef.current = null }
+  }
+
+  // Clean up listener on unmount
+  useEffect(() => {
+    return () => { if (unsubRef.current) { unsubRef.current(); unsubRef.current = null } }
+  }, [])
+
   // Existing project view
   if (loadingProject) {
     return (
@@ -295,6 +344,34 @@ export default function Project(): React.JSX.Element {
           {planningError && (
             <p className="text-sm text-destructive">{planningError}</p>
           )}
+        </div>
+      )}
+
+      {/* Pipeline orchestrator — visible once planning is done */}
+      {planningResult && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Pipeline</h3>
+            {!orchRunning && orchPhases.length === 0 && (
+              <button
+                onClick={startPipeline}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Run full pipeline
+              </button>
+            )}
+          </div>
+
+          {orchPhases.length > 0 && (
+            <PhaseTracker
+              phases={orchPhases}
+              onApprove={orchRunning ? approvePipeline : undefined}
+              onCancel={orchRunning ? cancelPipeline : undefined}
+            />
+          )}
+
+          {logLines.length > 0 && <LogStream lines={logLines} />}
         </div>
       )}
 
