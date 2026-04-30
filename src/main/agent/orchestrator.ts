@@ -123,6 +123,15 @@ export class Orchestrator extends EventEmitter {
     }
   }
 
+  /**
+   * Pause execution inside a phase until approve() is called.
+   * Used by sub-phase loops (e.g. codegen batches) that need
+   * mid-phase approval gates.
+   */
+  async pauseForApproval(): Promise<void> {
+    await this._waitForApproval()
+  }
+
   /** Unblock a phase waiting for approval. */
   approve(): void {
     if (this.approvalResolve) {
