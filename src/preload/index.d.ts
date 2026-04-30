@@ -223,6 +223,15 @@ export interface ScaffoldResult {
   costUsd: number
 }
 
+export interface CodegenResult {
+  filesWritten: number
+  filesPlanned: number
+  filesSkipped: number
+  batchesCompleted: number
+  totalCostUsd: number
+  model: string
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -298,6 +307,7 @@ export interface ForgeApi {
     planningRun(input: PlanningInput, projectId: string): Promise<PlanningResult>
     designRun(projectId: string): Promise<DesignResult>
     scaffoldRun(projectName: string, projectId: string): Promise<ScaffoldResult>
+    codegenRun(projectId: string, scaffoldSlug: string): Promise<CodegenResult>
   }
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
