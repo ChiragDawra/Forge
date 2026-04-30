@@ -8,6 +8,7 @@ import PlanViewer from '@renderer/components/project/PlanViewer'
 import PhaseTracker from '@renderer/components/project/PhaseTracker'
 import LogStream, { eventToLogLine } from '@renderer/components/project/LogStream'
 import DesignPhase, { DesignPhaseSkeleton } from '@renderer/components/project/DesignPhase'
+import ScaffoldViewer from '@renderer/components/project/ScaffoldViewer'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -15,6 +16,7 @@ import type {
   IntakeJson,
   PlanningResult,
   DesignResult,
+  ScaffoldResult,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -197,6 +199,25 @@ export default function Project(): React.JSX.Element {
       setDesignError(e instanceof Error ? e.message : 'Design phase failed')
     } finally {
       setDesignBusy(false)
+    }
+  }
+
+  // Scaffold phase state (Day 12)
+  const [scaffoldBusy, setScaffoldBusy] = useState(false)
+  const [scaffoldResult, setScaffoldResult] = useState<ScaffoldResult | null>(null)
+  const [scaffoldError, setScaffoldError] = useState<string | null>(null)
+
+  async function runScaffold(): Promise<void> {
+    if (!id || id === 'new' || !project) return
+    setScaffoldBusy(true)
+    setScaffoldError(null)
+    try {
+      const result = await window.api.phases.scaffoldRun(project.name, id)
+      setScaffoldResult(result)
+    } catch (e) {
+      setScaffoldError(e instanceof Error ? e.message : 'Scaffold phase failed')
+    } finally {
+      setScaffoldBusy(false)
     }
   }
 
@@ -389,6 +410,37 @@ export default function Project(): React.JSX.Element {
           </div>
           {designResult ? <DesignPhase result={designResult} /> : designBusy ? <DesignPhaseSkeleton /> : null}
           {designError && <p className="text-sm text-destructive">{designError}</p>}
+        </div>
+      )}
+
+      {/* Phase 3: Scaffold — visible once design is done */}
+      {designResult && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 3</span>
+              <h3 className="text-sm font-semibold">Scaffold</h3>
+            </div>
+            {!scaffoldResult && (
+              <button
+                onClick={runScaffold}
+                disabled={scaffoldBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {scaffoldBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {scaffoldBusy ? 'Generating…' : 'Run Scaffold'}
+              </button>
+            )}
+          </div>
+          {scaffoldResult ? (
+            <ScaffoldViewer result={scaffoldResult} />
+          ) : scaffoldBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generating project scaffold…
+            </div>
+          ) : null}
+          {scaffoldError && <p className="text-sm text-destructive">{scaffoldError}</p>}
         </div>
       )}
 
