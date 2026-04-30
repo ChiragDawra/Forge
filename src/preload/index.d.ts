@@ -194,6 +194,36 @@ export interface PlanningResult {
   totalCostUsd: number
 }
 
+export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
+
+export interface PhaseInfo {
+  index: number
+  name: string
+  status: PhaseStatus
+  error?: string
+  startedAt?: number
+  completedAt?: number
+}
+
+export type OrchestratorEventType =
+  | 'phase:start'
+  | 'phase:done'
+  | 'phase:error'
+  | 'phase:waiting'
+  | 'phase:approved'
+  | 'log'
+  | 'pipeline:done'
+  | 'pipeline:cancelled'
+
+export interface OrchestratorEvent {
+  type: OrchestratorEventType
+  phaseIndex?: number
+  phaseName?: string
+  message?: string
+  level?: 'info' | 'warn' | 'error'
+  phases?: PhaseInfo[]
+}
+
 export interface ForgeApi {
   projects: {
     create(name: string, prompt: string): Promise<ProjectRow>
@@ -237,6 +267,13 @@ export interface ForgeApi {
       projectId: string
     ): Promise<{ intake: IntakeJson; path: string }>
     planningRun(input: PlanningInput, projectId: string): Promise<PlanningResult>
+  }
+  orchestrator: {
+    start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
+    approve(projectId: string): Promise<{ ok: boolean }>
+    cancel(projectId: string): Promise<{ ok: boolean }>
+    phases(projectId: string): Promise<PhaseInfo[]>
+    onEvent(cb: (evt: OrchestratorEvent) => void): () => void
   }
 }
 
