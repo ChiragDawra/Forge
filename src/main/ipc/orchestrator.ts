@@ -11,6 +11,7 @@ import {
 import { runIntake } from '../agent/phases/0-intake'
 import { runPlanning } from '../agent/phases/1-planning'
 import { runDesign } from '../agent/phases/2-design'
+import { runScaffold } from '../agent/phases/3-scaffold'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -174,8 +175,22 @@ function makePhaseRunner(
         }
         break
       }
+      case 3: {
+        log('Checking for scaffold…')
+        try {
+          await readFile(join(dir, 'ui-components.json'), 'utf8')
+          log('Scaffold found — skipping')
+        } catch {
+          log('Running scaffold phase…')
+          const archRaw = await readFile(join(dir, 'architecture.json'), 'utf8')
+          const architecture = JSON.parse(archRaw)
+          await runScaffold(projectId.slice(0, 30), architecture, { projectId })
+          log('scaffold complete')
+        }
+        break
+      }
       default:
-        // Phases 3-8: stubs — will be wired in Days 12-18
+        // Phases 4-8: stubs — will be wired in Days 13-18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }

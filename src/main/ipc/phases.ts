@@ -20,6 +20,7 @@ import {
   type PlanningResult
 } from '../agent/phases/1-planning'
 import { runDesign, type DesignResult } from '../agent/phases/2-design'
+import { runScaffold, type ScaffoldResult } from '../agent/phases/3-scaffold'
 import {
   validateSender,
   checkRateLimit,
@@ -162,6 +163,33 @@ export function registerPhasesIpc(): void {
         return result
       } catch (err) {
         auditLog('phases:design:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
+
+  // ── Phase 3: scaffold — generate folder + stub files ───────────────
+  ipcMain.handle(
+    'phases:scaffold:run',
+    async (event, projectName: unknown, projectId?: unknown): Promise<ScaffoldResult> => {
+      try {
+        validateSender(event)
+        checkRateLimit('phases:scaffold:run')
+        assertSafeString(projectName, 'projectName', 200)
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+
+        const dir = join(app.getPath('userData'), 'projects', projectId)
+        const archRaw = await import('fs/promises').then((fs) =>
+          fs.readFile(join(dir, 'architecture.json'), 'utf8')
+        )
+        const architecture = JSON.parse(archRaw)
+
+        auditLog('phases:scaffold:run', `projectId=${projectId}`)
+        return await runScaffold(projectName as string, architecture, { projectId })
+      } catch (err) {
+        auditLog('phases:scaffold:run:error', safeErrorMessage(err))
         throw new Error(safeErrorMessage(err))
       }
     }
