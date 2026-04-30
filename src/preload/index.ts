@@ -52,7 +52,9 @@ const api: ForgeApi = {
     intakeFinalise: (draft, answers, projectId) =>
       ipcRenderer.invoke('phases:intake:finalise', draft, answers, projectId),
     planningRun: (input, projectId) =>
-      ipcRenderer.invoke('phases:planning:run', input, projectId)
+      ipcRenderer.invoke('phases:planning:run', input, projectId),
+    designRun: (projectId) =>
+      ipcRenderer.invoke('phases:design:run', projectId)
   },
   orchestrator: {
     start: (projectId, startPhase) =>

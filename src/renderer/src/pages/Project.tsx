@@ -7,12 +7,14 @@ import ApprovalGate from '@renderer/components/project/ApprovalGate'
 import PlanViewer from '@renderer/components/project/PlanViewer'
 import PhaseTracker from '@renderer/components/project/PhaseTracker'
 import LogStream, { eventToLogLine } from '@renderer/components/project/LogStream'
+import DesignPhase, { DesignPhaseSkeleton } from '@renderer/components/project/DesignPhase'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
   IntakeDraft,
   IntakeJson,
   PlanningResult,
+  DesignResult,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -176,6 +178,25 @@ export default function Project(): React.JSX.Element {
       setPlanningError(e instanceof Error ? e.message : 'Planning failed')
     } finally {
       setPlanningBusy(false)
+    }
+  }
+
+  // Design phase state (Day 11)
+  const [designBusy, setDesignBusy] = useState(false)
+  const [designResult, setDesignResult] = useState<DesignResult | null>(null)
+  const [designError, setDesignError] = useState<string | null>(null)
+
+  async function runDesign(): Promise<void> {
+    if (!id || id === 'new') return
+    setDesignBusy(true)
+    setDesignError(null)
+    try {
+      const result = await window.api.phases.designRun(id)
+      setDesignResult(result)
+    } catch (e) {
+      setDesignError(e instanceof Error ? e.message : 'Design phase failed')
+    } finally {
+      setDesignBusy(false)
     }
   }
 
@@ -344,6 +365,30 @@ export default function Project(): React.JSX.Element {
           {planningError && (
             <p className="text-sm text-destructive">{planningError}</p>
           )}
+        </div>
+      )}
+
+      {/* Phase 2: Design — visible once planning is done */}
+      {planningResult && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 2</span>
+              <h3 className="text-sm font-semibold">Design</h3>
+            </div>
+            {!designResult && (
+              <button
+                onClick={runDesign}
+                disabled={designBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {designBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {designBusy ? 'Generating…' : 'Run Design'}
+              </button>
+            )}
+          </div>
+          {designResult ? <DesignPhase result={designResult} /> : designBusy ? <DesignPhaseSkeleton /> : null}
+          {designError && <p className="text-sm text-destructive">{designError}</p>}
         </div>
       )}
 

@@ -19,6 +19,7 @@ import {
   type PlanningInput,
   type PlanningResult
 } from '../agent/phases/1-planning'
+import { runDesign, type DesignResult } from '../agent/phases/2-design'
 import {
   validateSender,
   checkRateLimit,
@@ -130,6 +131,37 @@ export function registerPhasesIpc(): void {
         return result
       } catch (err) {
         auditLog('phases:planning:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
+
+  // ── Phase 2: design brief + component map ───────────────────────────
+  ipcMain.handle(
+    'phases:design:run',
+    async (event, projectId?: unknown): Promise<DesignResult> => {
+      try {
+        validateSender(event)
+        checkRateLimit('phases:design:run')
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+
+        const dir = join(app.getPath('userData'), 'projects', projectId)
+        const [prd, archRaw] = await Promise.all([
+          import('fs/promises').then((fs) => fs.readFile(join(dir, 'prd.md'), 'utf8')),
+          import('fs/promises').then((fs) => fs.readFile(join(dir, 'architecture.json'), 'utf8'))
+        ])
+
+        auditLog('phases:design:run', `projectId=${projectId}`)
+        const result = await runDesign(prd, archRaw, { projectId })
+
+        await writeFile(join(dir, 'design-brief.md'), result.brief, 'utf8')
+        await writeFile(join(dir, 'ui-components.json'), JSON.stringify(result.components, null, 2), 'utf8')
+
+        return result
+      } catch (err) {
+        auditLog('phases:design:run:error', safeErrorMessage(err))
         throw new Error(safeErrorMessage(err))
       }
     }

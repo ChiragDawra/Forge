@@ -10,6 +10,7 @@ import {
 } from '../agent/orchestrator'
 import { runIntake } from '../agent/phases/0-intake'
 import { runPlanning } from '../agent/phases/1-planning'
+import { runDesign } from '../agent/phases/2-design'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -153,8 +154,28 @@ function makePhaseRunner(
         }
         break
       }
+      case 2: {
+        log('Checking for existing design-brief.md…')
+        try {
+          await readFile(join(dir, 'design-brief.md'), 'utf8')
+          log('design-brief.md found — skipping model call')
+        } catch {
+          log('Running design phase…')
+          const [prd, archRaw] = await Promise.all([
+            readFile(join(dir, 'prd.md'), 'utf8'),
+            readFile(join(dir, 'architecture.json'), 'utf8')
+          ])
+          const result = await runDesign(prd, archRaw, { projectId })
+          const { writeFile, mkdir } = await import('fs/promises')
+          await mkdir(dir, { recursive: true })
+          await writeFile(join(dir, 'design-brief.md'), result.brief, 'utf8')
+          await writeFile(join(dir, 'ui-components.json'), JSON.stringify(result.components, null, 2), 'utf8')
+          log('design phase complete')
+        }
+        break
+      }
       default:
-        // Phases 2-8: stubs — will be wired in Days 11-18
+        // Phases 3-8: stubs — will be wired in Days 12-18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }
