@@ -194,6 +194,20 @@ export interface PlanningResult {
   totalCostUsd: number
 }
 
+export interface DesignComponent {
+  name: string
+  path: string
+  description: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface DesignResult {
+  brief: string
+  components: DesignComponent[]
+  model: string
+  costUsd: number
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -267,7 +281,9 @@ export interface ForgeApi {
       projectId: string
     ): Promise<{ intake: IntakeJson; path: string }>
     planningRun(input: PlanningInput, projectId: string): Promise<PlanningResult>
+    designRun(projectId: string): Promise<DesignResult>
   }
+
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
     approve(projectId: string): Promise<{ ok: boolean }>
