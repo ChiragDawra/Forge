@@ -9,6 +9,7 @@ import PhaseTracker from '@renderer/components/project/PhaseTracker'
 import LogStream, { eventToLogLine } from '@renderer/components/project/LogStream'
 import DesignPhase, { DesignPhaseSkeleton } from '@renderer/components/project/DesignPhase'
 import ScaffoldViewer from '@renderer/components/project/ScaffoldViewer'
+import CodegenProgress from '@renderer/components/project/CodegenProgress'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -17,6 +18,7 @@ import type {
   PlanningResult,
   DesignResult,
   ScaffoldResult,
+  CodegenResult,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -218,6 +220,34 @@ export default function Project(): React.JSX.Element {
       setScaffoldError(e instanceof Error ? e.message : 'Scaffold phase failed')
     } finally {
       setScaffoldBusy(false)
+    }
+  }
+
+  // Codegen phase state (Day 14)
+  const [codegenBusy, setCodegenBusy] = useState(false)
+  const [codegenResult, setCodegenResult] = useState<CodegenResult | null>(null)
+  const [codegenError, setCodegenError] = useState<string | null>(null)
+  const [codegenFilesWritten, setCodegenFilesWritten] = useState(0)
+  const [codegenFilesPlanned, setCodegenFilesPlanned] = useState(0)
+  const [codegenCurrentFile, setCodegenCurrentFile] = useState<string | undefined>()
+
+  async function runCodegen(): Promise<void> {
+    if (!id || id === 'new' || !project || !scaffoldResult) return
+    setCodegenBusy(true)
+    setCodegenError(null)
+    setCodegenFilesWritten(0)
+    setCodegenFilesPlanned(0)
+    setCodegenCurrentFile(undefined)
+    try {
+      const result = await window.api.phases.codegenRun(id, scaffoldResult.slug)
+      setCodegenResult(result)
+      setCodegenFilesWritten(result.filesWritten)
+      setCodegenFilesPlanned(result.filesPlanned)
+    } catch (e) {
+      setCodegenError(e instanceof Error ? e.message : 'Codegen phase failed')
+    } finally {
+      setCodegenBusy(false)
+      setCodegenCurrentFile(undefined)
     }
   }
 
@@ -441,6 +471,36 @@ export default function Project(): React.JSX.Element {
             </div>
           ) : null}
           {scaffoldError && <p className="text-sm text-destructive">{scaffoldError}</p>}
+        </div>
+      )}
+
+      {/* Phase 4: Codegen — visible once scaffold is done */}
+      {scaffoldResult && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 4</span>
+              <h3 className="text-sm font-semibold">Codegen</h3>
+            </div>
+            {!codegenResult && (
+              <button
+                onClick={runCodegen}
+                disabled={codegenBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {codegenBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {codegenBusy ? 'Generating…' : 'Run Codegen'}
+              </button>
+            )}
+          </div>
+          <CodegenProgress
+            filesWritten={codegenFilesWritten}
+            filesPlanned={codegenFilesPlanned}
+            currentFile={codegenCurrentFile}
+            busy={codegenBusy}
+            result={codegenResult}
+          />
+          {codegenError && <p className="text-sm text-destructive">{codegenError}</p>}
         </div>
       )}
 

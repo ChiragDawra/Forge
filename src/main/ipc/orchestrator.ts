@@ -12,6 +12,7 @@ import { runIntake } from '../agent/phases/0-intake'
 import { runPlanning } from '../agent/phases/1-planning'
 import { runDesign } from '../agent/phases/2-design'
 import { runScaffold } from '../agent/phases/3-scaffold'
+import { runCodegen } from '../agent/phases/4-codegen'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -189,8 +190,27 @@ function makePhaseRunner(
         }
         break
       }
+      case 4: {
+        log('Running codegen phase…')
+        const slug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        await runCodegen(
+          projectId,
+          slug,
+          async (batchIndex, filesWritten, filesPlanned) => {
+            log(`Batch ${batchIndex + 1} done (${filesWritten}/${filesPlanned} files). Waiting for approval…`)
+            // Delegate to the orchestrator's public approval gate
+            const orch = getOrCreateOrchestrator(projectId)
+            await orch.pauseForApproval()
+            return true
+          },
+          log,
+          { projectId }
+        )
+        log('codegen phase complete')
+        break
+      }
       default:
-        // Phases 4-8: stubs — will be wired in Days 13-18
+        // Phases 5-8: stubs — will be wired in Days 15-18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }
