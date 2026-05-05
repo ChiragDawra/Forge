@@ -10,6 +10,7 @@ import LogStream, { eventToLogLine } from '@renderer/components/project/LogStrea
 import DesignPhase, { DesignPhaseSkeleton } from '@renderer/components/project/DesignPhase'
 import ScaffoldViewer from '@renderer/components/project/ScaffoldViewer'
 import CodegenProgress from '@renderer/components/project/CodegenProgress'
+import ReviewPanel from '@renderer/components/project/ReviewPanel'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -19,6 +20,7 @@ import type {
   DesignResult,
   ScaffoldResult,
   CodegenResult,
+  ReviewReport,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -248,6 +250,25 @@ export default function Project(): React.JSX.Element {
     } finally {
       setCodegenBusy(false)
       setCodegenCurrentFile(undefined)
+    }
+  }
+
+  // Review phase state (Day 15)
+  const [reviewBusy, setReviewBusy] = useState(false)
+  const [reviewReport, setReviewReport] = useState<ReviewReport | null>(null)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+
+  async function runReview(): Promise<void> {
+    if (!id || id === 'new' || !scaffoldResult) return
+    setReviewBusy(true)
+    setReviewError(null)
+    try {
+      const report = await window.api.phases.reviewRun(id, scaffoldResult.slug)
+      setReviewReport(report)
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : 'Review phase failed')
+    } finally {
+      setReviewBusy(false)
     }
   }
 
@@ -501,6 +522,37 @@ export default function Project(): React.JSX.Element {
             result={codegenResult}
           />
           {codegenError && <p className="text-sm text-destructive">{codegenError}</p>}
+        </div>
+      )}
+
+      {/* Phase 5: Review — visible once codegen is done */}
+      {codegenResult && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 5</span>
+              <h3 className="text-sm font-semibold">Code Review</h3>
+            </div>
+            {!reviewReport && (
+              <button
+                onClick={runReview}
+                disabled={reviewBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {reviewBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {reviewBusy ? 'Reviewing…' : 'Run Review'}
+              </button>
+            )}
+          </div>
+          {reviewReport ? (
+            <ReviewPanel report={reviewReport} />
+          ) : reviewBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Reviewing generated code…
+            </div>
+          ) : null}
+          {reviewError && <p className="text-sm text-destructive">{reviewError}</p>}
         </div>
       )}
 

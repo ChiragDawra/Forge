@@ -13,6 +13,7 @@ import { runPlanning } from '../agent/phases/1-planning'
 import { runDesign } from '../agent/phases/2-design'
 import { runScaffold } from '../agent/phases/3-scaffold'
 import { runCodegen } from '../agent/phases/4-codegen'
+import { runReview } from '../agent/phases/5-review'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -209,8 +210,15 @@ function makePhaseRunner(
         log('codegen phase complete')
         break
       }
+      case 5: {
+        log('Running code review phase…')
+        const reviewSlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        await runReview(projectId, reviewSlug, log, { projectId })
+        log('code review phase complete')
+        break
+      }
       default:
-        // Phases 5-8: stubs — will be wired in Days 15-18
+        // Phases 6-8: stubs — will be wired in Days 16-18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }
