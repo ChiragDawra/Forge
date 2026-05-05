@@ -232,6 +232,35 @@ export interface CodegenResult {
   model: string
 }
 
+export interface ReviewFinding {
+  line: number | null
+  severity: 'error' | 'warning' | 'info'
+  category: 'bug' | 'security' | 'performance' | 'style' | 'maintainability'
+  message: string
+  suggestion: string
+}
+
+export interface FileReview {
+  file: string
+  summary: string
+  findings: ReviewFinding[]
+  score: number
+}
+
+export interface ReviewReport {
+  reviewedAt: number
+  filesReviewed: number
+  totalFindings: number
+  errorCount: number
+  warningCount: number
+  infoCount: number
+  averageScore: number
+  overallSummary: string
+  fileReviews: FileReview[]
+  model: string
+  totalCostUsd: number
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -308,6 +337,7 @@ export interface ForgeApi {
     designRun(projectId: string): Promise<DesignResult>
     scaffoldRun(projectName: string, projectId: string): Promise<ScaffoldResult>
     codegenRun(projectId: string, scaffoldSlug: string): Promise<CodegenResult>
+    reviewRun(projectId: string, scaffoldSlug: string): Promise<ReviewReport>
   }
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
