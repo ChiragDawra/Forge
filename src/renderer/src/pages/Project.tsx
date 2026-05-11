@@ -11,6 +11,7 @@ import DesignPhase, { DesignPhaseSkeleton } from '@renderer/components/project/D
 import ScaffoldViewer from '@renderer/components/project/ScaffoldViewer'
 import CodegenProgress from '@renderer/components/project/CodegenProgress'
 import ReviewPanel from '@renderer/components/project/ReviewPanel'
+import SecurityAudit from '@renderer/components/project/SecurityAudit'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -21,6 +22,7 @@ import type {
   ScaffoldResult,
   CodegenResult,
   ReviewReport,
+  SecurityReport,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -269,6 +271,25 @@ export default function Project(): React.JSX.Element {
       setReviewError(e instanceof Error ? e.message : 'Review phase failed')
     } finally {
       setReviewBusy(false)
+    }
+  }
+
+  // Security phase state (Day 16)
+  const [securityBusy, setSecurityBusy] = useState(false)
+  const [securityReport, setSecurityReport] = useState<SecurityReport | null>(null)
+  const [securityError, setSecurityError] = useState<string | null>(null)
+
+  async function runSecurity(): Promise<void> {
+    if (!id || id === 'new' || !scaffoldResult) return
+    setSecurityBusy(true)
+    setSecurityError(null)
+    try {
+      const report = await window.api.phases.securityRun(id, scaffoldResult.slug)
+      setSecurityReport(report)
+    } catch (e) {
+      setSecurityError(e instanceof Error ? e.message : 'Security audit failed')
+    } finally {
+      setSecurityBusy(false)
     }
   }
 
@@ -553,6 +574,37 @@ export default function Project(): React.JSX.Element {
             </div>
           ) : null}
           {reviewError && <p className="text-sm text-destructive">{reviewError}</p>}
+        </div>
+      )}
+
+      {/* Phase 6: Security — visible once review is done */}
+      {reviewReport && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 6</span>
+              <h3 className="text-sm font-semibold">Security Audit</h3>
+            </div>
+            {!securityReport && (
+              <button
+                onClick={runSecurity}
+                disabled={securityBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {securityBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {securityBusy ? 'Scanning…' : 'Run Security Audit'}
+              </button>
+            )}
+          </div>
+          {securityReport ? (
+            <SecurityAudit report={securityReport} />
+          ) : securityBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Running security audit…
+            </div>
+          ) : null}
+          {securityError && <p className="text-sm text-destructive">{securityError}</p>}
         </div>
       )}
 

@@ -261,6 +261,59 @@ export interface ReviewReport {
   totalCostUsd: number
 }
 
+export interface NpmVulnerability {
+  name: string
+  severity: 'critical' | 'high' | 'moderate' | 'low' | 'info'
+  via: string[]
+  fixAvailable: boolean
+  range: string
+}
+
+export interface NpmAuditResult {
+  ran: boolean
+  vulnerabilities: NpmVulnerability[]
+  totalVulnerabilities: number
+  critical: number
+  high: number
+  moderate: number
+  low: number
+  info: number
+  rawOutput?: string
+  error?: string
+}
+
+export interface SecurityFinding {
+  line: number | null
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
+  category: 'injection' | 'xss' | 'auth' | 'secrets' | 'dependency' | 'crypto' | 'data-exposure' | 'config' | 'other'
+  title: string
+  description: string
+  recommendation: string
+}
+
+export interface FileSecurityResult {
+  file: string
+  findings: SecurityFinding[]
+  riskScore: number
+}
+
+export interface SecurityReport {
+  auditedAt: number
+  filesScanned: number
+  totalFindings: number
+  criticalCount: number
+  highCount: number
+  mediumCount: number
+  lowCount: number
+  infoCount: number
+  overallRiskScore: number
+  executiveSummary: string
+  fileResults: FileSecurityResult[]
+  npmAudit: NpmAuditResult
+  model: string
+  totalCostUsd: number
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -338,6 +391,7 @@ export interface ForgeApi {
     scaffoldRun(projectName: string, projectId: string): Promise<ScaffoldResult>
     codegenRun(projectId: string, scaffoldSlug: string): Promise<CodegenResult>
     reviewRun(projectId: string, scaffoldSlug: string): Promise<ReviewReport>
+    securityRun(projectId: string, scaffoldSlug: string): Promise<SecurityReport>
   }
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
