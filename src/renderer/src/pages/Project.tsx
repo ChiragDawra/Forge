@@ -28,7 +28,8 @@ import type {
   TestingReport,
   DeployReport,
   PhaseInfo,
-  OrchestratorEvent
+  OrchestratorEvent,
+  ProjectPhaseState
 } from '../../../preload/index.d'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -334,6 +335,58 @@ export default function Project(): React.JSX.Element {
       setDeployBusy(false)
     }
   }
+
+  // ── Cross-session resume (Day 19) ──────────────────────────────────────
+  // When an existing project loads, probe disk artefacts and hydrate phase
+  // state so the user can pick up exactly where they left off.
+  useEffect(() => {
+    if (!project || !id || id === 'new') return
+    window.api.phases.loadState(id).then((state: ProjectPhaseState) => {
+      if (state.intake)    setIntakeResult(state.intake)
+      if (state.planning) {
+        try {
+          setPlanningResult({
+            prd: state.planning.prd,
+            architecture: JSON.parse(state.planning.architectureRaw),
+            prdModel: 'resumed',
+            archModel: 'resumed',
+            totalCostUsd: 0
+          })
+        } catch { /* malformed arch JSON — skip */ }
+      }
+      if (state.design) {
+        try {
+          setDesignResult({
+            brief: state.design.brief,
+            components: JSON.parse(state.design.componentsRaw),
+            model: 'resumed',
+            costUsd: 0
+          })
+        } catch { /* malformed components JSON — skip */ }
+      }
+      if (state.scaffold) {
+        setScaffoldResult({
+          slug: state.scaffold.slug,
+          root: '',
+          filesCreated: state.scaffold.filesCreated,
+          tree: [],
+          model: 'resumed',
+          costUsd: 0
+        })
+      }
+      if (state.codegenResult)  setCodegenResult(state.codegenResult)
+      else if (state.codegenDone) {
+        setCodegenResult({
+          filesWritten: 0, filesPlanned: 0, filesSkipped: 0,
+          batchesCompleted: 0, totalCostUsd: 0, model: 'resumed'
+        })
+      }
+      if (state.reviewReport)   setReviewReport(state.reviewReport)
+      if (state.securityReport) setSecurityReport(state.securityReport)
+      if (state.testingReport)  setTestingReport(state.testingReport)
+      if (state.deployReport)   setDeployReport(state.deployReport)
+    }).catch(() => { /* resume is best-effort */ })
+  }, [project, id])
 
   // Orchestrator state (Day 10)
   const [orchPhases, setOrchPhases] = useState<PhaseInfo[]>([])

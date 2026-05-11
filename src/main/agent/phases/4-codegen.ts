@@ -3,6 +3,9 @@
 // the context manager. Pauses for approval every APPROVAL_BATCH files so
 // the user can review progress before continuing.
 
+import { writeFile, mkdir } from 'fs/promises'
+import { join } from 'path'
+import { app } from 'electron'
 import { routeTask } from '../../ai/router'
 import { logUsage } from '../../ai/types'
 import { writeProjectFile, projectRoot } from '../../tools/filesystem'
@@ -120,7 +123,7 @@ export async function runCodegen(
 
   log(`Codegen complete: ${filesWritten} written, ${filesSkipped} skipped`)
 
-  return {
+  const result: CodegenResult = {
     filesWritten,
     filesPlanned: planned.length,
     filesSkipped,
@@ -128,6 +131,15 @@ export async function runCodegen(
     totalCostUsd: totalCost,
     model
   }
+
+  // Persist report so project-state.ts can detect codegen completion on resume
+  try {
+    const dir = join(app.getPath('userData'), 'projects', projectId)
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'codegen-report.json'), JSON.stringify(result, null, 2), 'utf8')
+  } catch { /* non-fatal */ }
+
+  return result
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
