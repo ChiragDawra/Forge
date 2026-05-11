@@ -15,6 +15,7 @@ import { runScaffold } from '../agent/phases/3-scaffold'
 import { runCodegen } from '../agent/phases/4-codegen'
 import { runReview } from '../agent/phases/5-review'
 import { runSecurity } from '../agent/phases/6-security'
+import { runTesting } from '../agent/phases/7-testing'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -225,8 +226,15 @@ function makePhaseRunner(
         log('security audit phase complete')
         break
       }
+      case 7: {
+        log('Running Playwright testing phase…')
+        const testSlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        await runTesting(projectId, testSlug, log, { projectId })
+        log('testing phase complete')
+        break
+      }
       default:
-        // Phases 7-8: stubs — will be wired in Days 17-18
+        // Phase 8: stub — will be wired in Day 18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }
