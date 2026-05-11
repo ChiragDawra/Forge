@@ -16,6 +16,7 @@ import { runCodegen } from '../agent/phases/4-codegen'
 import { runReview } from '../agent/phases/5-review'
 import { runSecurity } from '../agent/phases/6-security'
 import { runTesting } from '../agent/phases/7-testing'
+import { runDeploy } from '../agent/phases/8-deploy'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -233,8 +234,14 @@ function makePhaseRunner(
         log('testing phase complete')
         break
       }
+      case 8: {
+        log('Running deploy phase…')
+        const deploySlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        await runDeploy(projectId, deploySlug, deploySlug, log, { projectId })
+        log('deploy phase complete')
+        break
+      }
       default:
-        // Phase 8: stub — will be wired in Day 18
         log(`Phase ${index} not yet implemented — skipping`)
         await new Promise<void>((r) => setTimeout(r, 200))
     }

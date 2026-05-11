@@ -13,6 +13,7 @@ import CodegenProgress from '@renderer/components/project/CodegenProgress'
 import ReviewPanel from '@renderer/components/project/ReviewPanel'
 import SecurityAudit from '@renderer/components/project/SecurityAudit'
 import TestResults from '@renderer/components/project/TestResults'
+import DeployResult from '@renderer/components/project/DeployResult'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -25,6 +26,7 @@ import type {
   ReviewReport,
   SecurityReport,
   TestingReport,
+  DeployReport,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -311,6 +313,25 @@ export default function Project(): React.JSX.Element {
       setTestingError(e instanceof Error ? e.message : 'Testing phase failed')
     } finally {
       setTestingBusy(false)
+    }
+  }
+
+  // Deploy phase state (Day 18)
+  const [deployBusy, setDeployBusy] = useState(false)
+  const [deployReport, setDeployReport] = useState<DeployReport | null>(null)
+  const [deployError, setDeployError] = useState<string | null>(null)
+
+  async function runDeploy(): Promise<void> {
+    if (!id || id === 'new' || !scaffoldResult || !project) return
+    setDeployBusy(true)
+    setDeployError(null)
+    try {
+      const report = await window.api.phases.deployRun(id, scaffoldResult.slug, project.name)
+      setDeployReport(report)
+    } catch (e) {
+      setDeployError(e instanceof Error ? e.message : 'Deploy failed')
+    } finally {
+      setDeployBusy(false)
     }
   }
 
@@ -657,6 +678,37 @@ export default function Project(): React.JSX.Element {
             </div>
           ) : null}
           {testingError && <p className="text-sm text-destructive">{testingError}</p>}
+        </div>
+      )}
+
+      {/* Phase 8: Deploy — visible once testing is done */}
+      {testingReport && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 8</span>
+              <h3 className="text-sm font-semibold">Deploy</h3>
+            </div>
+            {!deployReport && (
+              <button
+                onClick={runDeploy}
+                disabled={deployBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {deployBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+                {deployBusy ? 'Deploying…' : 'Deploy to Vercel'}
+              </button>
+            )}
+          </div>
+          {deployReport ? (
+            <DeployResult report={deployReport} />
+          ) : deployBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Deploying to Vercel…
+            </div>
+          ) : null}
+          {deployError && <p className="text-sm text-destructive">{deployError}</p>}
         </div>
       )}
 

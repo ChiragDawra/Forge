@@ -329,6 +329,17 @@ export interface TestingReport {
   totalCostUsd: number
 }
 
+export interface DeployReport {
+  deployedAt: number
+  success: boolean
+  url?: string
+  projectName: string
+  environment: 'production' | 'preview'
+  durationMs: number
+  output: string
+  error?: string
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -408,6 +419,7 @@ export interface ForgeApi {
     reviewRun(projectId: string, scaffoldSlug: string): Promise<ReviewReport>
     securityRun(projectId: string, scaffoldSlug: string): Promise<SecurityReport>
     testingRun(projectId: string, scaffoldSlug: string): Promise<TestingReport>
+    deployRun(projectId: string, scaffoldSlug: string, projectName: string): Promise<DeployReport>
   }
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>

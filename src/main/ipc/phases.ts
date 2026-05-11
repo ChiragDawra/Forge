@@ -25,6 +25,7 @@ import { runCodegen, type CodegenResult } from '../agent/phases/4-codegen'
 import { runReview, type ReviewReport } from '../agent/phases/5-review'
 import { runSecurity, type SecurityReport } from '../agent/phases/6-security'
 import { runTesting, type TestingReport } from '../agent/phases/7-testing'
+import { runDeploy, type DeployReport } from '../agent/phases/8-deploy'
 import {
   validateSender,
   checkRateLimit,
@@ -303,6 +304,34 @@ export function registerPhasesIpc(): void {
         )
       } catch (err) {
         auditLog('phases:testing:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
+
+  // ── Phase 8: deploy ──────────────────────────────────────────────────
+  ipcMain.handle(
+    'phases:deploy:run',
+    async (event, projectId: unknown, scaffoldSlug: unknown, projectName: unknown): Promise<DeployReport> => {
+      try {
+        validateSender(event)
+        checkRateLimit('phases:deploy:run')
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+        assertSafeString(scaffoldSlug, 'scaffoldSlug', 100)
+        assertSafeString(projectName, 'projectName', 200)
+
+        auditLog('phases:deploy:run', `projectId=${projectId} slug=${scaffoldSlug}`)
+        return await runDeploy(
+          projectId,
+          scaffoldSlug as string,
+          projectName as string,
+          (msg) => console.log('[deploy]', msg),
+          { projectId }
+        )
+      } catch (err) {
+        auditLog('phases:deploy:run:error', safeErrorMessage(err))
         throw new Error(safeErrorMessage(err))
       }
     }
