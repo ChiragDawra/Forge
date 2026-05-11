@@ -12,6 +12,7 @@ import ScaffoldViewer from '@renderer/components/project/ScaffoldViewer'
 import CodegenProgress from '@renderer/components/project/CodegenProgress'
 import ReviewPanel from '@renderer/components/project/ReviewPanel'
 import SecurityAudit from '@renderer/components/project/SecurityAudit'
+import TestResults from '@renderer/components/project/TestResults'
 import type { LogLine } from '@renderer/components/project/LogStream'
 import type {
   ProjectRow,
@@ -23,6 +24,7 @@ import type {
   CodegenResult,
   ReviewReport,
   SecurityReport,
+  TestingReport,
   PhaseInfo,
   OrchestratorEvent
 } from '../../../preload/index.d'
@@ -290,6 +292,25 @@ export default function Project(): React.JSX.Element {
       setSecurityError(e instanceof Error ? e.message : 'Security audit failed')
     } finally {
       setSecurityBusy(false)
+    }
+  }
+
+  // Testing phase state (Day 17)
+  const [testingBusy, setTestingBusy] = useState(false)
+  const [testingReport, setTestingReport] = useState<TestingReport | null>(null)
+  const [testingError, setTestingError] = useState<string | null>(null)
+
+  async function runTesting(): Promise<void> {
+    if (!id || id === 'new' || !scaffoldResult) return
+    setTestingBusy(true)
+    setTestingError(null)
+    try {
+      const report = await window.api.phases.testingRun(id, scaffoldResult.slug)
+      setTestingReport(report)
+    } catch (e) {
+      setTestingError(e instanceof Error ? e.message : 'Testing phase failed')
+    } finally {
+      setTestingBusy(false)
     }
   }
 
@@ -605,6 +626,37 @@ export default function Project(): React.JSX.Element {
             </div>
           ) : null}
           {securityError && <p className="text-sm text-destructive">{securityError}</p>}
+        </div>
+      )}
+
+      {/* Phase 7: Testing — visible once security audit is done */}
+      {securityReport && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Phase 7</span>
+              <h3 className="text-sm font-semibold">E2E Testing</h3>
+            </div>
+            {!testingReport && (
+              <button
+                onClick={runTesting}
+                disabled={testingBusy}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {testingBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {testingBusy ? 'Generating…' : 'Run Tests'}
+              </button>
+            )}
+          </div>
+          {testingReport ? (
+            <TestResults report={testingReport} />
+          ) : testingBusy ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generating and running tests…
+            </div>
+          ) : null}
+          {testingError && <p className="text-sm text-destructive">{testingError}</p>}
         </div>
       )}
 
