@@ -27,6 +27,10 @@ import { runSecurity, type SecurityReport } from '../agent/phases/6-security'
 import { runTesting, type TestingReport } from '../agent/phases/7-testing'
 import { runDeploy, type DeployReport } from '../agent/phases/8-deploy'
 import {
+  loadProjectPhaseState,
+  resumePhaseIndex
+} from '../agent/project-state'
+import {
   validateSender,
   checkRateLimit,
   assertSafeString,
@@ -332,6 +336,25 @@ export function registerPhasesIpc(): void {
         )
       } catch (err) {
         auditLog('phases:deploy:run:error', safeErrorMessage(err))
+        throw new Error(safeErrorMessage(err))
+      }
+    }
+  )
+
+  // ── Load phase state (resume) ────────────────────────────────────────
+  ipcMain.handle(
+    'phases:load-state',
+    async (event, projectId: unknown) => {
+      try {
+        validateSender(event)
+        if (typeof projectId !== 'string' || !UUID_RE.test(projectId)) {
+          throw new Error('projectId must be a UUID')
+        }
+        auditLog('phases:load-state', `projectId=${projectId}`)
+        const state = await loadProjectPhaseState(projectId)
+        return { ...state, resumePhaseIndex: resumePhaseIndex(state) }
+      } catch (err) {
+        auditLog('phases:load-state:error', safeErrorMessage(err))
         throw new Error(safeErrorMessage(err))
       }
     }

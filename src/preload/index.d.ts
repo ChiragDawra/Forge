@@ -340,6 +340,26 @@ export interface DeployReport {
   error?: string
 }
 
+export interface ProjectPhaseState {
+  intake:    IntakeJson | null
+  planning:  { prd: string; architectureRaw: string } | null
+  design:    { brief: string; componentsRaw: string } | null
+  scaffold:  { slug: string; filesCreated: number } | null
+  // Full reports when available (parsed from disk on resume)
+  codegenResult:  CodegenResult | null
+  reviewReport:   ReviewReport | null
+  securityReport: SecurityReport | null
+  testingReport:  TestingReport | null
+  deployReport:   DeployReport | null
+  // Convenience flags
+  codegenDone:  boolean
+  reviewDone:   boolean
+  securityDone: boolean
+  testingDone:  boolean
+  deployDone:   boolean
+  resumePhaseIndex: number
+}
+
 export type PhaseStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting'
 
 export interface PhaseInfo {
@@ -420,6 +440,7 @@ export interface ForgeApi {
     securityRun(projectId: string, scaffoldSlug: string): Promise<SecurityReport>
     testingRun(projectId: string, scaffoldSlug: string): Promise<TestingReport>
     deployRun(projectId: string, scaffoldSlug: string, projectName: string): Promise<DeployReport>
+    loadState(projectId: string): Promise<ProjectPhaseState>
   }
   orchestrator: {
     start(projectId: string, startPhase?: number): Promise<{ ok: boolean; phases: PhaseInfo[] }>
