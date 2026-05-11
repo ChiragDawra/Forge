@@ -64,7 +64,9 @@ const api: ForgeApi = {
     securityRun: (projectId, scaffoldSlug) =>
       ipcRenderer.invoke('phases:security:run', projectId, scaffoldSlug),
     testingRun: (projectId, scaffoldSlug) =>
-      ipcRenderer.invoke('phases:testing:run', projectId, scaffoldSlug)
+      ipcRenderer.invoke('phases:testing:run', projectId, scaffoldSlug),
+    deployRun: (projectId, scaffoldSlug, projectName) =>
+      ipcRenderer.invoke('phases:deploy:run', projectId, scaffoldSlug, projectName)
   },
   orchestrator: {
     start: (projectId, startPhase) =>
