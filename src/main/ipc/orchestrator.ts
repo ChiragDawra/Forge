@@ -20,12 +20,30 @@ import { runDeploy } from '../agent/phases/8-deploy'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
+import { eq } from 'drizzle-orm'
+import { getDb } from '../db/client'
+import { projects } from '../db/schema'
 import {
   validateSender,
   checkRateLimit,
   safeErrorMessage,
   auditLog
 } from './security'
+
+/**
+ * Derive the generated-project slug the same way runScaffold does:
+ * prefer architecture.json → projectName, fall back to projectId prefix.
+ */
+async function deriveSlug(projectId: string, dir: string): Promise<string> {
+  try {
+    const archRaw = await readFile(join(dir, 'architecture.json'), 'utf8')
+    const arch = JSON.parse(archRaw)
+    if (arch?.projectName && typeof arch.projectName === 'string') {
+      return arch.projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80)
+    }
+  } catch { /* fall back */ }
+  return projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -189,20 +207,21 @@ function makePhaseRunner(
           log('Running scaffold phase…')
           const archRaw = await readFile(join(dir, 'architecture.json'), 'utf8')
           const architecture = JSON.parse(archRaw)
-          await runScaffold(projectId.slice(0, 30), architecture, { projectId })
+          // Use architecture.projectName so the slug matches phases 4-8
+          const scaffoldName = architecture?.projectName ?? projectId.slice(0, 30)
+          await runScaffold(scaffoldName, architecture, { projectId })
           log('scaffold complete')
         }
         break
       }
       case 4: {
         log('Running codegen phase…')
-        const slug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const slug = await deriveSlug(projectId, dir)
         await runCodegen(
           projectId,
           slug,
           async (batchIndex, filesWritten, filesPlanned) => {
             log(`Batch ${batchIndex + 1} done (${filesWritten}/${filesPlanned} files). Waiting for approval…`)
-            // Delegate to the orchestrator's public approval gate
             const orch = getOrCreateOrchestrator(projectId)
             await orch.pauseForApproval()
             return true
@@ -215,29 +234,36 @@ function makePhaseRunner(
       }
       case 5: {
         log('Running code review phase…')
-        const reviewSlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const reviewSlug = await deriveSlug(projectId, dir)
         await runReview(projectId, reviewSlug, log, { projectId })
         log('code review phase complete')
         break
       }
       case 6: {
         log('Running security audit phase…')
-        const secSlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const secSlug = await deriveSlug(projectId, dir)
         await runSecurity(projectId, secSlug, log, { projectId })
         log('security audit phase complete')
         break
       }
       case 7: {
         log('Running Playwright testing phase…')
-        const testSlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const testSlug = await deriveSlug(projectId, dir)
         await runTesting(projectId, testSlug, log, { projectId })
         log('testing phase complete')
         break
       }
       case 8: {
         log('Running deploy phase…')
-        const deploySlug = projectId.slice(0, 30).toLowerCase().replace(/[^a-z0-9]+/g, '-')
-        await runDeploy(projectId, deploySlug, deploySlug, log, { projectId })
+        const deploySlug = await deriveSlug(projectId, dir)
+        // Resolve human-readable project name for Vercel
+        let deployProjectName = deploySlug
+        try {
+          const db = getDb()
+          const [row] = await db.select().from(projects).where(eq(projects.id, projectId))
+          if (row?.name) deployProjectName = row.name
+        } catch { /* fall back to slug */ }
+        await runDeploy(projectId, deploySlug, deployProjectName, log, { projectId })
         log('deploy phase complete')
         break
       }
